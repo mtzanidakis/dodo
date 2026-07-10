@@ -112,3 +112,8 @@ func (s *Tokens) Touch(ctx context.Context, id string) error {
 		formatTime(time.Now().UTC()), id)
 	return err
 }
+
+func (s *Tokens) Purge(ctx context.Context, id string) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM api_tokens WHERE id = ?`, id)
+	return err
+}

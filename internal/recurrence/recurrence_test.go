@@ -121,7 +121,7 @@ func TestEndAtCutoff(t *testing.T) {
 	end := base.Add(36 * time.Hour)
 	r := recurrence.Rule{Freq: models.FreqDaily, Interval: 1, EndAt: end}
 	next := recurrence.NextOccurrence(r, base, base, l) // +24h within end
-	if !next.Equal(base.Add(24*time.Hour)) {
+	if !next.Equal(base.Add(24 * time.Hour)) {
 		t.Fatalf("within end: got %v", next)
 	}
 	next2 := recurrence.NextOccurrence(r, next, next, l) // +48h > end(36h) → zero
