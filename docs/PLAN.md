@@ -76,7 +76,7 @@ dodo/
 ```
 
 ### 0.4 Coding conventions
-- Go 1.26.4, modules, `internal/` package boundary.
+- Go 1.26.5, modules, `internal/` package boundary.
 - Logging: `log/slog` with structured fields. The `dodo` (server/admin) binary reads level from `DODO_LOG_LEVEL`; `dodo-cli`/`dodo-tui` read `log_level` from their JSON config (default `info`).
 - Errors: define sentinel errors in `internal/models/errors.go` (`ErrNotFound`, `ErrUnauthorized`, `ErrConflict`, `ErrValidation`). Wrap with `%w`. HTTP layer maps them to status codes.
 - Context: every store/handler signature takes `ctx context.Context` first.
@@ -187,7 +187,7 @@ The `feat` type is used for new functionality, `fix` for bugs, `refactor` for no
 
 **Tasks:**
 1. `go mod init github.com/mtzanidakis/dodo`.
-2. `mise.toml`: pin `go = "1.26.4"`, `golangci-lint = "2.12.2"`, `node = "24"`. Define tasks: `build-server` (`go build ./cmd/dodo`), `build-cli` (`go build ./cmd/dodo-cli`), `build-tui` (`go build ./cmd/dodo-tui`), `build-all`, `run`, `test`, `lint`, `web:build`, `web:dev`, `tidy`.
+2. `mise.toml`: pin `go = "1.26.5"`, `golangci-lint = "2.12.2"`, `node = "24"`. Define tasks: `build-server` (`go build ./cmd/dodo`), `build-cli` (`go build ./cmd/dodo-cli`), `build-tui` (`go build ./cmd/dodo-tui`), `build-all`, `run`, `test`, `lint`, `web:build`, `web:dev`, `tidy`.
 3. `.golangci.yaml` (latest v2 schema) with the linters listed in 0.4.
 4. `.commitlintrc.yml` (repo root, auto-detected by commitlint): conventional-commits config defining allowed types (`feat,fix,refactor,test,chore,docs,ci,build,perf,style`), scopes (`db,auth,api,recurrence,scheduler,notify,telegram,web,i18n,tui,cli,admin,docker,ci,crypto,config`), subject max-length 72, body max-line-length 72, require footer for breaking changes.
 5. `cmd/dodo/main.go`: dispatch on `os.Args[1]` to `serve`/`admin`; print usage otherwise. `cmd/dodo-cli/main.go` and `cmd/dodo-tui/main.go`: minimal stubs printing "not implemented" and `--help` flag placeholders. Each branch/program just prints "not implemented" for now.
@@ -653,7 +653,7 @@ Already scaffolded in Phase 7; here we wire the browser surface:
 
 Multi-stage:
 - `FROM node:24-alpine AS web` → `mise run web:build` (or `npm ci && npm run build`).
-- `FROM golang:1.26.4-alpine AS go` → `COPY internal/web/dist`, `go build -trimpath -ldflags "-s -w -X main.version=… -X main.commit=…" -o /out/dodo ./cmd/dodo` (only the serve+admin binary; `dodo-cli`/`dodo-tui` are end-user binaries, not shipped in the image). CGO disabled (`CGO_ENABLED=0`) so modernc.org/sqlite pure-Go works without a C toolchain.
+- `FROM golang:1.26.5-alpine AS go` → `COPY internal/web/dist`, `go build -trimpath -ldflags "-s -w -X main.version=… -X main.commit=…" -o /out/dodo ./cmd/dodo` (only the serve+admin binary; `dodo-cli`/`dodo-tui` are end-user binaries, not shipped in the image). CGO disabled (`CGO_ENABLED=0`) so modernc.org/sqlite pure-Go works without a C toolchain.
 - `FROM alpine:3.24` → `ca-certificates`, `tzdata`, `wget` (healthcheck), `mkdir /data`, copy `/out/dodo`, expose `8080/tcp`, `VOLUME ["/data"]`, `ENTRYPOINT ["dodo"]`, `CMD ["serve"]`. Healthcheck `wget -qO- localhost:8080/healthz || exit 1` (route defined in Phase 5).
 - Label `org.opencontainers.image.source=https://github.com/mtzanidakis/dodo`.
 
