@@ -26,7 +26,7 @@ The project will be MIT-licensed.
 - Full tasks management and viewing from AI agents with the cli. Raw json default output for agents, with --pretty for humans.
 - Modern, clean user interface with dark/light/system theme and selector.
 - i18n: English and Greek UI (web, TUI, telegram messages). Per-user timezone and locale.
-- Server configuration via env vars. The cli and tui clients read `~/.config/dodo/config.toml` (overridable with flags), no env vars.
+- Server configuration via env vars. The cli and tui clients read `~/.config/dodo/config.json` (overridable with flags), no env vars.
 
 ## Stack
 

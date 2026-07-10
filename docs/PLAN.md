@@ -25,7 +25,6 @@ Required:
 - `golang.org/x/crypto/argon2` — `argon2id` password hashing.
 - `github.com/google/uuid` — IDs (UUIDv7; time-ordered, sortable, DB-friendly).
 - `github.com/charmbracelet/bubbletea`, `bubbles`, `lipgloss` — TUI.
-- `github.com/pelletier/go-toml/v2` — TOML config file parser for CLI/TUI (`encoding/json` handles all JSON; stdlib has no TOML).
 
 Everything else uses the Go standard library (`net/http` with `ServeMux` method patterns for routing, `log/slog` for logging, `encoding/json`, `html/template`, `time`, `crypto/rand`, `os`).
 
@@ -47,7 +46,7 @@ dodo/
 │   └── dodo-tui/main.go       # TUI entry
 ├── internal/
 │   ├── config/        env → typed struct (server/admin)
-│   ├── clientconfig/  ~/.config/dodo/config.toml loader (cli/tui)
+│   ├── clientconfig/  ~/.config/dodo/config.json loader (cli/tui)
 │   ├── db/            *sqlite.Conn, migration runner connection helper
 │   ├── migrations/    *.sql embedded; migrations.go with //go:embed
 │   ├── models/        domain structs (User, Task, ApiToken, Session, ...)
@@ -78,7 +77,7 @@ dodo/
 
 ### 0.4 Coding conventions
 - Go 1.26.4, modules, `internal/` package boundary.
-- Logging: `log/slog` with structured fields. The `dodo` (server/admin) binary reads level from `DODO_LOG_LEVEL`; `dodo-cli`/`dodo-tui` read `log_level` from their TOML config (default `info`).
+- Logging: `log/slog` with structured fields. The `dodo` (server/admin) binary reads level from `DODO_LOG_LEVEL`; `dodo-cli`/`dodo-tui` read `log_level` from their JSON config (default `info`).
 - Errors: define sentinel errors in `internal/models/errors.go` (`ErrNotFound`, `ErrUnauthorized`, `ErrConflict`, `ErrValidation`). Wrap with `%w`. HTTP layer maps them to status codes.
 - Context: every store/handler signature takes `ctx context.Context` first.
 - JSON: snake_case via struct tags (`json:"due_at"`).
@@ -93,7 +92,7 @@ dodo/
 
 ### 0.5 Server configuration (env vars — `dodo` binary only)
 
-Env vars are used **exclusively** by the `dodo` binary (`serve` + `admin`). `dodo-cli` and `dodo-tui` ignore all env vars; they read `~/.config/dodo/config.toml` (see §0.6).
+Env vars are used **exclusively** by the `dodo` binary (`serve` + `admin`). `dodo-cli` and `dodo-tui` ignore all env vars; they read `~/.config/dodo/config.json` (see §0.6).
 
 | Env                        | Default        | Notes                                              |
 |----------------------------|----------------|----------------------------------------------------|
@@ -107,22 +106,24 @@ Env vars are used **exclusively** by the `dodo` binary (`serve` + `admin`). `dod
 
 `internal/config.Load()` returns a validated `Config` struct; unknown/invalid env values are startup errors except where defaults are documented.
 
-### 0.6 Client configuration (`dodo-cli` / `dodo-tui` — TOML config file)
+### 0.6 Client configuration (`dodo-cli` / `dodo-tui` — JSON config file)
 
-Both client binaries read a TOML config file at `~/.config/dodo/config.toml` (path overridable via `--config <path>` flag). They **do not read any environment variables** — not `DODO_API_URL`, not `DODO_*`, nothing.
+Both client binaries read a JSON config file at `~/.config/dodo/config.json` (path overridable via `--config <path>` flag), parsed with stdlib `encoding/json` — no config-parser dependency. They **do not read any environment variables** — not `DODO_API_URL`, not `DODO_*`, nothing.
 
-File format:
-```toml
-url      = "http://localhost:8080"   # API base URL (required)
-token    = "dodo_xxxxxxxxxxxx"       # API token (required for API calls)
-log_level = "info"                    # optional: debug|info|warn|error
+File format (`url` = API base URL, required; `token` = API token, required for API calls; `log_level` optional: debug|info|warn|error, default info):
+```json
+{
+  "url": "http://localhost:8080",
+  "token": "dodo_xxxxxxxxxxxx",
+  "log_level": "info"
+}
 ```
 
 Resolution rules:
 - `url` and `token` may be overridden by `--url` and `--token` flags respectively (flags > config file). This is the primary path for AI agents: `dodo-cli --url <api> --token <token> tasks list`.
-- `--config` flag sets a custom config path; default is `~/.config/dodo/config.toml`.
+- `--config` flag sets a custom config path; default is `~/.config/dodo/config.json`.
 - Missing config file is not fatal (flags can supply everything), but missing `url` or `token` when an API call is needed → user-facing error (exit 5) with a hint about how to create one (`dodo admin token create` or `POST /api/v1/tokens` via the web UI).
-- For first-time setup, `dodo-cli init --url <api> --token <token>` writes a minimal `config.toml`; `dodo-tui` does the same on first launch when no config exists (prompting interactively, or erroring in non-interactive mode).
+- For first-time setup, `dodo-cli init --url <api> --token <token>` writes a minimal `config.json`; `dodo-tui` does the same on first launch when no config exists (prompting interactively, or erroring in non-interactive mode).
 
 `internal/clientconfig.Load(flags)` returns a `ClientConfig` struct used by both `dodo-cli` and `dodo-tui`. The token is sent as `Authorization: Bearer <token>`; the server scopes all returned data to the token owner (see §0.5 scoping rule below).
 
@@ -190,7 +191,7 @@ The `feat` type is used for new functionality, `fix` for bugs, `refactor` for no
 3. `.golangci.yaml` (latest v2 schema) with the linters listed in 0.4.
 4. `.commitlintrc.yml` (repo root, auto-detected by commitlint): conventional-commits config defining allowed types (`feat,fix,refactor,test,chore,docs,ci,build,perf,style`), scopes (`db,auth,api,recurrence,scheduler,notify,telegram,web,i18n,tui,cli,admin,docker,ci,crypto,config`), subject max-length 72, body max-line-length 72, require footer for breaking changes.
 5. `cmd/dodo/main.go`: dispatch on `os.Args[1]` to `serve`/`admin`; print usage otherwise. `cmd/dodo-cli/main.go` and `cmd/dodo-tui/main.go`: minimal stubs printing "not implemented" and `--help` flag placeholders. Each branch/program just prints "not implemented" for now.
-6. `internal/config.Load()` parsing the env table in §0.5 with `os.Getenv` + helpers for the `dodo` binary (server + admin); validate locale/timezone with `time.LoadLocation`. Separately, `internal/clientconfig.Load()` loading `~/.config/dodo/config.toml` (via `github.com/pelletier/go-toml/v2`) and merging `--url`/`--token`/`--config` flags for `dodo-cli`/`dodo-tui` (see §0.6). Client binaries never call `os.Getenv`.
+6. `internal/config.Load()` parsing the env table in §0.5 with `os.Getenv` + helpers for the `dodo` binary (server + admin); validate locale/timezone with `time.LoadLocation`. Separately, `internal/clientconfig.Load()` loading `~/.config/dodo/config.json` (stdlib `encoding/json`) and merging `--url`/`--token`/`--config` flags for `dodo-cli`/`dodo-tui` (see §0.6). Client binaries never call `os.Getenv`.
 7. `.gitignore`: `/internal/web/dist`, `/data`, binaries (`/dodo`, `/dodo-cli`, `/dodo-tui`), `*.sqlite`, `*.db-*`.
 
 **Done when:** `mise run build-all` compiles all three binaries; `mise run lint` passes; `dodo serve` prints "not implemented"; `dodo-cli --help` and `dodo-tui --help` print usage.
@@ -537,11 +538,11 @@ Empty DB bootstrap: `dodo admin user create --email admin@… --password … --r
 
 ## Phase 10 — `dodo-cli` binary (AI-agent CLI)
 
-**Files:** `internal/cli/*.go`, `internal/clientconfig/*.go`, `cmd/dodo-cli/main.go` (HTTP client; url + token from `~/.config/dodo/config.toml` or flags — no env vars, see §0.6).
+**Files:** `internal/cli/*.go`, `internal/clientconfig/*.go`, `cmd/dodo-cli/main.go` (HTTP client; url + token from `~/.config/dodo/config.json` or flags — no env vars, see §0.6).
 
 The `dodo-cli` binary is a separate program; commands are top-level (not a subcommand). JSON to stdout by default, `--pretty` for humans:
 ```
-dodo-cli init               [--url] [--token] [--config]  (writes ~/.config/dodo/config.toml)
+dodo-cli init               [--url] [--token] [--config]  (writes ~/.config/dodo/config.json)
 dodo-cli me
 dodo-cli tasks list         [--filter=pending|completed|all] [--priority=] [--from=] [--to=] [--view=list|calendar] [--limit=] [--cursor=]
 dodo-cli tasks get          <id>
@@ -559,9 +560,9 @@ dodo-cli --raw              (default; show keys even when null)
 ```
 Dates accept RFC3339 or `YYYY-MM-DDTHH:MM` interpreted in the configured locale timezone, or `now`, `now+30m`, `tomorrow 10:00` (free-form via a small `parseHumanTime` helper backed by stdlib only).
 
-Token and url resolution: `--token`/`--url` flags override `~/.config/dodo/config.toml` (see §0.6). Missing token → exit 5 with a stderr hint about how to create one (`dodo admin token create` or `POST /api/v1/tokens`). The token is sent as `Authorization: Bearer <token>`; server scopes all returned data to that token's owner only (see §0.4).
+Token and url resolution: `--token`/`--url` flags override `~/.config/dodo/config.json` (see §0.6). Missing token → exit 5 with a stderr hint about how to create one (`dodo admin token create` or `POST /api/v1/tokens`). The token is sent as `Authorization: Bearer <token>`; server scopes all returned data to that token's owner only (see §0.4).
 
-`dodo-cli init --url <api> --token <token>` writes a minimal `config.toml` for first-time setup.
+`dodo-cli init --url <api> --token <token>` writes a minimal `config.json` for first-time setup.
 
 `--json` is implicit for agents; always include machine-readable exit codes: 0 ok, 1 generic error, 2 usage, 4 not found, 5 auth failure. Errors print to stderr as `{"error":{"code","message"}}` and stdout stays empty on failure so pipelines stay clean.
 
@@ -571,7 +572,7 @@ Token and url resolution: `--token`/`--url` flags override `~/.config/dodo/confi
 
 ## Phase 11 — `dodo-tui` binary (Terminal UI)
 
-**Files:** `internal/tui/*.go`, `internal/clientconfig/*.go`, `cmd/dodo-tui/main.go` (bubbletea program; url + token from `~/.config/dodo/config.toml` or flags — no env vars, see §0.6).
+**Files:** `internal/tui/*.go`, `internal/clientconfig/*.go`, `cmd/dodo-tui/main.go` (bubbletea program; url + token from `~/.config/dodo/config.json` or flags — no env vars, see §0.6).
 
 The `dodo-tui` binary is a separate program with no subcommands; flags only (`--token`, `--url`, `--help`).
 
@@ -707,7 +708,7 @@ Verification: `docker build` + `docker run -e DODO_DATABASE_PATH=/data/dodo.sqli
 
 **Tasks:**
 1. Coverage push: aim ≥ 85% for `internal/store`, `internal/recurrence`, `internal/auth`, `internal/api`, `internal/scheduler`, `internal/notify`.
-2. Add `AGENTS.md` documenting: build/test/lint commands (`mise run build|test|lint|web:build`), server env vars (§0.5), client config.toml format (§0.6), conventional commits convention (§0.7), how to run the server + admin bootstrap, how to set up `dodo-cli`/`dodo-tui` (write config.toml with `dodo-cli init`), how to add a migration, branch protection rules (Phase 16).
+2. Add `AGENTS.md` documenting: build/test/lint commands (`mise run build|test|lint|web:build`), server env vars (§0.5), client config.json format (§0.6), conventional commits convention (§0.7), how to run the server + admin bootstrap, how to set up `dodo-cli`/`dodo-tui` (write config.json with `dodo-cli init`), how to add a migration, branch protection rules (Phase 16).
 3. `README.md`: features screen (mini), quickstart (`docker run …`, `dodo admin user create`, `dodo-cli init --url … --token …`, `dodo-cli tasks list`, `dodo-tui`), server env var table link to §0.5, client config link to §0.6, three-binary overview table, license MIT. Include a backup section: the `/data` volume is the only state; online backup via `sqlite3 dodo.sqlite ".backup backup.sqlite"` or a Litestream pointer.
 4. License header check (golangci license linter disabled; instead add `// SPDX-License-Identifier: MIT` to top of each `.go` file? — keep simple: rely on repo LICENSE; do not add headers unless desired). Decision: do not add file headers.
 5. Final lint + `go vet` + `gofmt -l` clean; `mise run lint` passes in CI-equivalent mode.
