@@ -134,6 +134,11 @@ func (m *Middleware) CSRF(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
+		sess, err := r.Cookie(SessionCookie)
+		if err != nil || sess.Value == "" {
+			next.ServeHTTP(w, r)
+			return
+		}
 		cookie, err := r.Cookie(CSRFCookie)
 		if err != nil || cookie.Value == "" {
 			csrfReject(w, r)
