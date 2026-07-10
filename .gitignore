@@ -1,0 +1,10 @@
+/internal/web/dist/
+/data/
+/dodo
+/dodo-cli
+/dodo-tui
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+node_modules/

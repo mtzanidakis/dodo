@@ -1,0 +1,37 @@
+[tools]
+go = "1.26.5"
+golangci-lint = "2.12.2"
+node = "24"
+
+[env]
+# mise tasks run with the project's tool versions
+
+[tasks.build-server]
+run = "go build ./cmd/dodo"
+
+[tasks.build-cli]
+run = "go build ./cmd/dodo-cli"
+
+[tasks.build-tui]
+run = "go build ./cmd/dodo-tui"
+
+[tasks.build-all]
+depends = ["build-server", "build-cli", "build-tui"]
+
+[tasks.run]
+run = "go run ./cmd/dodo serve"
+
+[tasks.test]
+run = "go test -race -covermode=atomic ./..."
+
+[tasks.lint]
+run = "golangci-lint run ./..."
+
+[tasks."web:build"]
+run = "cd web && npm ci && npm run build"
+
+[tasks."web:dev"]
+run = "cd web && npm run dev"
+
+[tasks.tidy]
+run = "go mod tidy"

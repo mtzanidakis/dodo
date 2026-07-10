@@ -1,0 +1,48 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - ineffassign
+    - unused
+    - gocritic
+    - revive
+
+  settings:
+    revive:
+      rules:
+        - name: exported
+          disabled: true
+        - name: package-comments
+          disabled: true
+        - name: var-naming
+          disabled: true
+        - name: unexported-return
+          disabled: true
+        - name: blank-imports
+          disabled: true
+
+  exclusions:
+    paths:
+      - "internal/web/dist"
+      - "web"
+      - ".*_test\\.go"
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+  exclusions:
+    paths:
+      - "internal/web/dist"
+      - "web"
+
+issues:
+  max-same-issues: 0

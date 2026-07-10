@@ -1,0 +1,45 @@
+type: object
+properties:
+  type:
+    enum:
+      - feat
+      - fix
+      - refactor
+      - test
+      - chore
+      - docs
+      - ci
+      - build
+      - perf
+      - style
+  scope:
+    enum:
+      - db
+      - auth
+      - api
+      - recurrence
+      - scheduler
+      - notify
+      - telegram
+      - web
+      - i18n
+      - tui
+      - cli
+      - admin
+      - docker
+      - ci
+      - crypto
+      - config
+required:
+  - type
+  - subject
+rules:
+  subject:
+    max-length: 72
+    case: lower
+    ends-with-dot: false
+  body:
+    max-line-length: 72
+  footer:
+    breaking:
+      required: true
