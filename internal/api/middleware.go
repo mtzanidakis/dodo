@@ -50,3 +50,10 @@ func (r *statusRecorder) WriteHeader(code int) {
 func (r *statusRecorder) Write(b []byte) (int, error) {
 	return r.ResponseWriter.Write(b)
 }
+
+// Unwrap lets http.ResponseController reach the underlying ResponseWriter, so
+// its Hijacker/Flusher work through this wrapper — required for the /ws
+// websocket upgrade, which otherwise fails with 501.
+func (r *statusRecorder) Unwrap() http.ResponseWriter {
+	return r.ResponseWriter
+}
