@@ -7,6 +7,7 @@ node = "24"
 # mise tasks run with the project's tool versions
 
 [tasks.build-server]
+depends = ["web:build"]
 run = "go build ./cmd/dodo"
 
 [tasks.build-cli]
@@ -19,6 +20,7 @@ run = "go build ./cmd/dodo-tui"
 depends = ["build-server", "build-cli", "build-tui"]
 
 [tasks.serve]
+depends = ["web:build"]
 run = "go run ./cmd/dodo serve"
 
 [tasks.test]
