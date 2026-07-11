@@ -4,10 +4,21 @@ import (
 	"net/http"
 
 	"github.com/mtzanidakis/dodo/internal/auth"
+	"github.com/mtzanidakis/dodo/internal/web"
 )
 
 func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mw := s.authMW
+
+	assetsFS, assetVersion := web.AssetsFS()
+	webHandler := web.NewHandler(web.Deps{
+		Store:    s.store,
+		AuthMW:   mw,
+		Hub:      s.hub,
+		AssetsFS: assetsFS,
+		Version:  assetVersion,
+	})
+	webHandler.Mount(mux)
 	apiChain := func(h http.HandlerFunc) http.Handler {
 		return mw.AuthBearer(mw.AuthSession(mw.CSRF(mw.RequireUser(h))))
 	}

@@ -1,0 +1,27 @@
+{{define "content"}}
+<section style="max-width:32rem;margin:2rem auto;padding:1rem">
+  <h1>Account</h1>
+  <form method="POST" action="/account">
+    <p><label>Display name<br><input name="display_name" value="{{.User.DisplayName}}"></label></p>
+    <p><label>Timezone<br><input name="timezone" value="{{.User.Timezone}}"></label></p>
+    <p><label>Locale<br><select name="locale"><option {{if eq .User.Locale "en"}}selected{{end}}>en</option><option {{if eq .User.Locale "el"}}selected{{end}}>el</option></select></label></p>
+    <p><label>Theme<br><select name="theme"><option {{if eq .User.Theme "system"}}selected{{end}}>system</option><option {{if eq .User.Theme "light"}}selected{{end}}>light</option><option {{if eq .User.Theme "dark"}}selected{{end}}>dark</option></select></label></p>
+    <button class="btn">Save</button>
+  </form>
+  <hr>
+  <h2>Change password</h2>
+  <form method="POST" action="/account/password">
+    <p><label>Current<br><input type="password" name="current_password"></label></p>
+    <p><label>New<br><input type="password" name="new_password"></label></p>
+    <button class="btn">Change</button>
+  </form>
+  <hr>
+  <h2>Telegram</h2>
+  <p>Status: {{if .User.TelegramConfiguredAt}}configured{{else}}not configured{{end}}</p>
+  <form method="POST" action="/account/telegram">
+    <p><label>Bot token<br><input name="bot_token"></label></p>
+    <p><label>Allowed Telegram user ids (comma)<br><input name="allowed_user_ids"></label></p>
+    <button class="btn">Save</button>
+  </form>
+</section>
+{{end}}

@@ -1,0 +1,12 @@
+{
+  "name": "dodo-web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "tailwindcss -c tailwind.config.js -i src/app.css -o ../internal/web/dist/app.css --minify && node copy-vendor.js && node src/app.js"
+  },
+  "devDependencies": {
+    "tailwindcss": "^4.0.0",
+    "@tailwindcss/cli": "^4.0.0"
+  }
+}

@@ -1,0 +1,24 @@
+{{define "page"}}<!doctype html>
+<html lang="{{.Lang}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="csrf-token" content="{{.CSRF}}">
+<meta name="color-scheme" content="{{.ColorScheme}}">
+<title>{{.Title}} - dodo</title>
+<link rel="stylesheet" href="/static/{{.AssetVersion}}/app.css">
+<script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
+</head>
+<body hx-headers='{"X-CSRF-Token":"{{.CSRF}}"}'>
+<header class="topbar">
+  <strong>dodo</strong>
+  {{if .User}}<span>{{.User.Email}}</span>{{end}}
+  <nav style="margin-left:auto;display:flex;gap:0.5rem">
+    {{if .User}}<a class="btn" href="/">Tasks</a> <a class="btn" href="/account">Account</a> <a class="btn" href="/tokens">Tokens</a>{{end}}
+  </nav>
+</header>
+<main>
+{{template "content" .}}
+</main>
+</body>
+</html>{{end}}

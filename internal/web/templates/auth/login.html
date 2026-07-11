@@ -1,0 +1,11 @@
+{{define "content"}}
+<section style="max-width:24rem;margin:4rem auto">
+  <h1>Sign in</h1>
+  {{if .Error}}<p style="color:#dc2626">{{.Error}}</p>{{end}}
+  <form method="POST" action="/login">
+    <label>Email<br><input name="email" type="email" required></label><br><br>
+    <label>Password<br><input name="password" type="password" required></label><br><br>
+    <button class="btn" type="submit">Sign in</button>
+  </form>
+</section>
+{{end}}

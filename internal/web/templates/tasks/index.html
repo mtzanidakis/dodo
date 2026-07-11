@@ -1,0 +1,23 @@
+{{define "content"}}
+<div style="padding:1rem">
+  <div style="display:flex;gap:0.5rem;margin-bottom:1rem">
+    <a class="btn" href="/?filter=pending">Pending</a>
+    <a class="btn" href="/?filter=completed">Completed</a>
+    <a class="btn" href="/?filter=all">All</a>
+  </div>
+  <div id="task-list">
+  {{range .Tasks}}
+  <div class="task-row" id="task-{{.ID}}">
+    <span class="prio-{{.Priority}}">{{priorityIcon .Priority}}</span>
+    <strong>{{.Title}}</strong>
+    <span style="opacity:0.7">{{dueLocal .DueAt $.User.Timezone}}</span>
+    {{if not .CompletedAt}}
+    <span style="margin-left:auto">
+      <button class="btn" hx-post="/ui/tasks/{{.ID}}/complete" hx-target="#task-{{.ID}}" hx-swap="outerHTML">Complete</button>
+    </span>
+    {{else}}<span style="margin-left:auto;opacity:0.6">done</span>{{end}}
+  </div>
+  {{else}}<p>No tasks.</p>{{end}}
+  </div>
+</div>
+{{end}}
