@@ -14,6 +14,7 @@ import (
 	"github.com/mtzanidakis/dodo/internal/auth"
 	"github.com/mtzanidakis/dodo/internal/config"
 	"github.com/mtzanidakis/dodo/internal/db"
+	"github.com/mtzanidakis/dodo/internal/migrations"
 	"github.com/mtzanidakis/dodo/internal/models"
 	"github.com/mtzanidakis/dodo/internal/store"
 )
@@ -125,7 +126,17 @@ func runMigrate(args []string) int {
 		return 1
 	}
 	defer func() { _ = d.Close() }()
-	fmt.Println(`{"ok":true,"action":"migrate"}`)
+	ctx := context.Background()
+	if err := migrations.Apply(ctx, d); err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		return 1
+	}
+	applied, err := migrations.Applied(ctx, d)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		return 1
+	}
+	output(map[string]any{"ok": true, "action": "migrate", "applied": applied}, false)
 	return 0
 }
 
@@ -496,11 +507,12 @@ func tokenRevoke(args []string) int {
 	if *id != "" {
 		targetID = *id
 	} else {
-		list, err := st.Tokens.List(ctx, "")
-		_ = list
-		_ = err
-		fmt.Fprintln(os.Stderr, "error: prefix lookup not implemented; use --id")
-		return 1
+		tok, err := st.Tokens.GetByPrefix(ctx, *prefix)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "error: no active token with that prefix")
+			return 1
+		}
+		targetID = tok.ID
 	}
 	if err := st.Tokens.Purge(ctx, targetID); err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
