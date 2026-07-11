@@ -123,6 +123,12 @@ func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
 	}
 	filter.Cursor = r.URL.Query().Get("cursor")
 
+	// The period axis (today/week/month) combines with the status filter;
+	// explicit from/to override it.
+	if filter.From == nil && filter.To == nil {
+		filter.ApplyPeriod(r.URL.Query().Get("period"), s.Now().In(loc))
+	}
+
 	tasks, cursor, err := s.store.Tasks.List(r.Context(), u.ID, filter)
 	if err != nil {
 		writeError(w, err)
