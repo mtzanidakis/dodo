@@ -5,7 +5,6 @@ WORKDIR /src
 COPY web/package.json web/package-lock.json* ./web/
 RUN cd web && npm install --no-audit --no-fund
 COPY web ./web
-COPY internal/web/dist ./internal/web/dist
 WORKDIR /src/web
 RUN npm run build
 

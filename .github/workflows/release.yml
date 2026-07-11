@@ -32,6 +32,7 @@ jobs:
       - uses: jdx/mise-action@v2
         with:
           experimental: true
+      - uses: anchore/sbom-action/download-syft@v0
       - uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
