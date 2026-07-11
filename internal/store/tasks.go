@@ -328,9 +328,12 @@ func (s *Tasks) Complete(ctx context.Context, userID, id string, now time.Time, 
 		t.CompletedAt = &now
 	}
 
+	// completed_at follows t.CompletedAt: a recurring series that advanced to
+	// its next occurrence keeps it NULL (only the current occurrence is
+	// recorded in task_completions), so future repetitions stay open.
 	if _, err := tx.ExecContext(ctx, `UPDATE tasks SET completed_at=?, updated_at=?, due_at=?,
  recurrence_freq=?, recurrence_interval=?, recurrence_by_day=?, recurrence_by_month_day=?, recurrence_end_at=?, last_notified_at=NULL, kind=? WHERE id=? AND user_id=?`,
-		formatTime(now), formatTime(now.UTC()), formatTime(t.DueAt),
+		formatTime(ptrTime(t.CompletedAt)), formatTime(now.UTC()), formatTime(t.DueAt),
 		nullableFreq(t.RecurrenceFreq), t.RecurrenceInterval, nullableStr(t.RecurrenceByDay), freqByMonthVal(t.RecurrenceByMonthDay),
 		formatTime(ptrTime(t.RecurrenceEndAt)), t.Kind, t.ID, t.UserID); err != nil {
 		return nil, nil, false, err

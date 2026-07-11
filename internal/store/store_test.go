@@ -344,6 +344,22 @@ func TestTasksCompleteRecurringAdvances(t *testing.T) {
 	if !updated.DueAt.Equal(base.Add(24 * time.Hour)) {
 		t.Fatalf("due should advance to next day, got %v", updated.DueAt)
 	}
+	// The persisted series must stay OPEN so future occurrences remain:
+	// only the current occurrence is recorded in task_completions.
+	got, err := s.Tasks.Get(ctx, u.ID, tk.ID)
+	if err != nil {
+		t.Fatalf("get after complete: %v", err)
+	}
+	if got.Completed() {
+		t.Fatalf("recurring task must stay open after completing an occurrence, completed_at=%v", got.CompletedAt)
+	}
+	if !got.DueAt.Equal(base.Add(24 * time.Hour)) {
+		t.Fatalf("persisted due should be next day, got %v", got.DueAt)
+	}
+	pending, _, _ := s.Tasks.List(ctx, u.ID, models.TaskFilter{Filter: "pending", Limit: 10})
+	if len(pending) != 1 {
+		t.Fatalf("advanced recurring task should still be pending, got %d", len(pending))
+	}
 }
 
 func TestTasksCompleteRecurringEndAtFinishes(t *testing.T) {
