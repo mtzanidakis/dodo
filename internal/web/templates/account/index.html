@@ -40,6 +40,20 @@
   </div>
 
   <div class="card panel">
+    <h2>{{t .Lang "notify.title"}}</h2>
+    <p class="hint">{{t .Lang "notify.help"}}</p>
+    <p data-notify-status>
+      <span class="ns ns-granted"><span class="badge recurring">{{t .Lang "notify.enabled"}}</span></span>
+      <span class="ns ns-default"><span class="badge">{{t .Lang "notify.disabled"}}</span></span>
+      <span class="ns ns-denied"><span class="badge">{{t .Lang "notify.blocked"}}</span></span>
+      <span class="ns ns-unsupported"><span class="badge">{{t .Lang "notify.unsupported"}}</span></span>
+    </p>
+    <div class="form-actions">
+      <button type="button" class="btn btn-primary" data-notify-enable hidden>{{t .Lang "notify.enable"}}</button>
+    </div>
+  </div>
+
+  <div class="card panel">
     <h2>Telegram</h2>
     {{if .Telegram.Configured}}
       <p><span class="badge recurring">{{t .Lang "telegram.status_configured"}}</span>
