@@ -109,7 +109,21 @@ API, so it fires while a dodo tab is open and requires a secure context
 
 ## Backup
 
-The `/data` volume is the only state. Online backup:
+The `/data` volume is the only state. Take a consistent online backup with the
+built-in command (safe while the server is running — it uses `VACUUM INTO`):
+
+```
+dodo backup -dump /data/backup-$(date +%F).sqlite
+```
+
+Inside the container:
+
+```
+docker exec dodo dodo backup -dump /data/backup-$(date +%F).sqlite
+```
+
+`-dump` refuses to overwrite an existing file, so use a fresh (e.g. dated)
+path. Equivalent with the `sqlite3` CLI, if you have it:
 
 ```
 sqlite3 /data/dodo.sqlite ".backup /data/backup.sqlite"
