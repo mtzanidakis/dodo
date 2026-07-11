@@ -15,6 +15,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 		Store:    s.store,
 		AuthMW:   mw,
 		Hub:      s.hub,
+		Telegram: s,
 		AssetsFS: assetsFS,
 		Version:  assetVersion,
 	})

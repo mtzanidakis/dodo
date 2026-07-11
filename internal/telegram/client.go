@@ -65,7 +65,39 @@ func (e *APIError) Error() string {
 	return fmt.Sprintf("telegram api error %d: %s", e.Code, e.Description)
 }
 
+// maxRetries bounds how many times a 429 (rate-limited) call is retried while
+// honoring the server-provided retry_after.
+const maxRetries = 3
+
 func (c *Client) call(ctx context.Context, method string, params url.Values, body any) (json.RawMessage, error) {
+	var lastErr error
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		raw, err := c.callOnce(ctx, method, params, body)
+		if err == nil {
+			return raw, nil
+		}
+		lastErr = err
+		var apiErr *APIError
+		if !errors.As(err, &apiErr) || apiErr.Code != http.StatusTooManyRequests || attempt == maxRetries {
+			return nil, err
+		}
+		wait := time.Duration(apiErr.RetryAfter) * time.Second
+		if wait <= 0 {
+			wait = time.Second
+		}
+		if wait > 60*time.Second {
+			wait = 60 * time.Second
+		}
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(wait):
+		}
+	}
+	return nil, lastErr
+}
+
+func (c *Client) callOnce(ctx context.Context, method string, params url.Values, body any) (json.RawMessage, error) {
 	var resp *http.Response
 	var err error
 	if body != nil {
@@ -122,15 +154,31 @@ type SendMessageRequest struct {
 	ReplyMarkup json.RawMessage `json:"reply_markup,omitempty"`
 }
 
+type InlineKeyboardButton struct {
+	Text         string `json:"text"`
+	CallbackData string `json:"callback_data,omitempty"`
+}
+
+type InlineKeyboardMarkup struct {
+	InlineKeyboard [][]InlineKeyboardButton `json:"inline_keyboard"`
+}
+
 func (c *Client) SendMessage(ctx context.Context, chatID, text string) error {
+	return c.SendMessageWithMarkup(ctx, chatID, text, nil)
+}
+
+func (c *Client) SendMessageWithMarkup(ctx context.Context, chatID, text string, markup *InlineKeyboardMarkup) error {
 	body := SendMessageRequest{ChatID: chatID, Text: text}
+	if markup != nil {
+		if data, err := json.Marshal(markup); err == nil {
+			body.ReplyMarkup = data
+		}
+	}
 	_, err := c.call(ctx, "sendMessage", nil, body)
 	return err
 }
 
 func (c *Client) Token() string { return c.token }
-
-var _ = errors.New
 
 type Update struct {
 	UpdateID      int64          `json:"update_id"`

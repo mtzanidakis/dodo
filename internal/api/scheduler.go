@@ -90,7 +90,8 @@ func (sc *Scheduler) dispatch(ctx context.Context, t *models.Task, now time.Time
 	sc.hub.Publish(t.UserID, "task.due", map[string]any{"id": t.ID, "title": t.Title})
 	if u.TelegramEnabled() && u.TelegramChatID != "" {
 		text := renderReminder(u, t, now)
-		if err := sc.telegram.SendTest(ctx, u.ID, u.TelegramChatID, text); err != nil {
+		label := i18n.T("action.complete", string(u.Locale))
+		if err := sc.telegram.SendReminder(ctx, u.ID, u.TelegramChatID, text, t.ID, label); err != nil {
 			sc.logger.Warn("telegram reminder send failed", "user_id", t.UserID, "task_id", t.ID, "error", err)
 		}
 	}
