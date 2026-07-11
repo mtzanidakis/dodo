@@ -35,10 +35,8 @@
       </div>
     </details>
     <details class="dropdown usermenu">
-      <summary>
+      <summary title="{{.User.Email}}">
         <span class="avatar">{{slice .User.Email 0 1}}</span>
-        <span class="who">{{.User.Email}}</span>
-        <span class="caret" aria-hidden="true">▾</span>
       </summary>
       <div class="menu card">
         <a href="/tokens" class="{{if eq .Nav "tokens"}}active{{end}}">{{t .Lang "nav.tokens"}}</a>
