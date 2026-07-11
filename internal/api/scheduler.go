@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/mtzanidakis/dodo/internal/i18n"
 	"github.com/mtzanidakis/dodo/internal/models"
 	"github.com/mtzanidakis/dodo/internal/store"
 	"github.com/mtzanidakis/dodo/internal/ws"
@@ -102,7 +103,8 @@ func renderReminder(u *models.User, t *models.Task, now time.Time) string {
 		loc = time.UTC
 	}
 	due := t.DueAt.In(loc).Format("15:04")
-	return t.Title + " (due " + due + ", priority " + string(t.Priority) + ")"
+	prio := i18n.T("priority."+string(t.Priority), string(u.Locale))
+	return i18n.T("reminder.summary", string(u.Locale), t.Title, due, prio)
 }
 
 var _ TelegramService

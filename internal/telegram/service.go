@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mtzanidakis/dodo/internal/i18n"
 	"github.com/mtzanidakis/dodo/internal/models"
 	"github.com/mtzanidakis/dodo/internal/recurrence"
 	"github.com/mtzanidakis/dodo/internal/store"
@@ -62,10 +63,11 @@ func (s *Service) handleUpdate(userID string, u Update) {
 	if err != nil || encToken == "" {
 		return
 	}
+	lang := s.userLang(userID)
 	if u.Message != nil && u.Message.From != nil {
 		fromID := strconv.FormatInt(u.Message.From.ID, 10)
 		if !isAllowed(fromID, allowed) {
-			s.reply(ctx, userID, u.Message.Chat.IDString(), "You are not authorized to use this bot.")
+			s.reply(ctx, userID, u.Message.Chat.IDString(), i18n.T("telegram.unauthorized", lang))
 			return
 		}
 		text := strings.TrimSpace(u.Message.Text)
@@ -74,16 +76,24 @@ func (s *Service) handleUpdate(userID string, u Update) {
 			chatID := u.Message.Chat.IDString()
 			chatUserID := fromID
 			_ = s.store.Users.SetTelegramChatID(ctx, userID, chatID, chatUserID)
-			s.reply(ctx, userID, chatID, "Linked. You will receive task reminders here.")
+			s.reply(ctx, userID, chatID, i18n.T("telegram.linked", lang))
 			s.hub.Publish(userID, "telegram.linked", map[string]any{"chat_id": chatID})
 		default:
-			s.reply(ctx, userID, u.Message.Chat.IDString(), "Send /start to link this chat for reminders.")
+			s.reply(ctx, userID, u.Message.Chat.IDString(), i18n.T("telegram.help", lang))
 		}
 		return
 	}
 	if u.CallbackQuery != nil {
 		s.handleCallback(ctx, userID, u.CallbackQuery)
 	}
+}
+
+func (s *Service) userLang(userID string) string {
+	u, err := s.store.Users.GetByID(context.Background(), userID)
+	if err != nil || u == nil {
+		return "en"
+	}
+	return string(u.Locale)
 }
 
 func (s *Service) handleCallback(ctx context.Context, userID string, cq *CallbackQuery) {
@@ -121,13 +131,13 @@ func (s *Service) handleCallback(ctx context.Context, userID string, cq *Callbac
 	})
 	if err != nil {
 		if errors.Is(err, models.ErrNotFound) {
-			_ = s.answer(ctx, userID, cq.ID, "Task not found")
+			_ = s.answer(ctx, userID, cq.ID, i18n.T("telegram.not_found_toast", s.userLang(userID)))
 			return
 		}
 		_ = s.answer(ctx, userID, cq.ID, "Error completing task")
 		return
 	}
-	_ = s.answer(ctx, userID, cq.ID, "Completed")
+	_ = s.answer(ctx, userID, cq.ID, i18n.T("telegram.completed_toast", s.userLang(userID)))
 	s.hub.Publish(userID, "task.completed", map[string]any{"id": taskID})
 	chatID := cq.Message.Chat.IDString()
 	_ = s.editMessage(ctx, userID, chatID, cq.Message.MessageID, fmt.Sprintf("%s (completed)", t.Title))
