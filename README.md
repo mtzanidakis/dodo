@@ -5,10 +5,15 @@ A self-hosted todo & reminders service. MIT licensed.
 Tasks support one-off reminders at a specific date/time and recurring
 tasks (daily/weekly/monthly/yearly). Notifications repeat at the
 priority's interval until completed (low=2h, normal=1h, high=20m) and
-are delivered through **each user's own Telegram bot**, with a
-"Complete" button straight from the chat. The service is designed to
-run inside a private Tailscale tailnet and uses long polling (no
-webhooks).
+are delivered through **each user's own Telegram bot** (with a
+"Complete" button straight from the chat) and as **desktop browser
+notifications** while the web app is open. Tasks can be snoozed to
+silence reminders until later. The service is designed to run inside a
+private Tailscale tailnet and uses long polling (no webhooks).
+
+All users are equal — there are no roles. User and token management is
+done with the `dodo admin` CLI (direct DB access); everything else is
+per-user and scoped to the authenticated user.
 
 | Binary     | Purpose                                                            |
 |------------|-------------------------------------------------------------------|
@@ -25,9 +30,9 @@ docker run -d --name dodo \
   -e DODO_ENCRYPTION_KEY=$(openssl rand -base64 32) \
   ghcr.io/mtzanidakis/dodo
 
-# bootstrap the first admin (inside the container)
-docker exec -it dodo dodo admin user create --email admin@example.com --password supersecret
-TOK=$(docker exec -it dodo dodo admin token create --email admin@example.com --name agent | jq -r .token)
+# create the first user (inside the container)
+docker exec -it dodo dodo admin user create --email you@example.com --password supersecret
+TOK=$(docker exec -it dodo dodo admin token create --email you@example.com --name agent | jq -r .token)
 
 dodo-cli init --url http://localhost:8080 --token "$TOK"
 dodo-cli tasks create --title "Pay electric bill" --due 2026-07-11T17:00:00Z --priority high
@@ -48,8 +53,11 @@ TOK=$(./dodo admin token create --email admin@example.com --name agent | jq -r .
 ./dodo-cli --url http://localhost:8080 --token "$TOK" tasks list
 ```
 
-Open `http://localhost:8080/login` in a browser and sign in with the
-admin credentials to use the web UI.
+Open `http://localhost:8080/login` in a browser and sign in with those
+credentials to use the web UI: a list view (with today/this-week/
+this-month and pending/completed/all filters), a month calendar,
+per-user profile, API token management, Telegram setup, dark/light/
+system theme, and English/Greek locales.
 
 ## Server env vars
 
@@ -91,6 +99,13 @@ first-time setup.
 Bot tokens are encrypted at rest with AES-256-GCM
 (`DODO_ENCRYPTION_KEY`). The server receives updates with long polling
 (no webhooks needed).
+
+## Browser notifications
+
+On the web Account page, click **Enable notifications** to also get a
+desktop notification when a task is due. This uses the Web Notifications
+API, so it fires while a dodo tab is open and requires a secure context
+(`localhost` or https — not plain http to a LAN/tailnet IP).
 
 ## Backup
 
