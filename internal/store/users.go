@@ -15,7 +15,7 @@ type Users struct {
 }
 
 func userColumns() string {
-	return `id, email, password_hash, role, display_name, timezone, locale, theme,
+	return `id, email, password_hash, display_name, timezone, locale, theme,
         telegram_bot_token, telegram_allowed_user_ids, telegram_chat_id, telegram_chat_user_id,
         telegram_configured_at, created_at, updated_at, deleted_at`
 }
@@ -34,7 +34,7 @@ func scanUser(row interface {
 		updatedAt    sql.NullString
 	)
 	err := row.Scan(
-		&u.ID, &u.Email, &u.PasswordHash, &u.Role, &u.DisplayName, &u.Timezone, &u.Locale, &u.Theme,
+		&u.ID, &u.Email, &u.PasswordHash, &u.DisplayName, &u.Timezone, &u.Locale, &u.Theme,
 		&botToken, &allowed, &chatID, &chatUserID, &configuredAt,
 		&createdAt, &updatedAt, &deletedAt,
 	)
@@ -59,9 +59,6 @@ func (s *Users) Create(ctx context.Context, u *models.User) error {
 	now := time.Now().UTC()
 	u.CreatedAt = now
 	u.UpdatedAt = now
-	if u.Role == "" {
-		u.Role = models.RoleUser
-	}
 	if u.Timezone == "" {
 		u.Timezone = "Europe/Athens"
 	}
@@ -74,11 +71,11 @@ func (s *Users) Create(ctx context.Context, u *models.User) error {
 
 	var botToken, allowed, chatID, chatUserID, configuredAt, deletedAt any
 	_, err := s.db.ExecContext(ctx, `INSERT INTO users
-(id, email, password_hash, role, display_name, timezone, locale, theme,
+(id, email, password_hash, display_name, timezone, locale, theme,
  telegram_bot_token, telegram_allowed_user_ids, telegram_chat_id, telegram_chat_user_id,
  telegram_configured_at, created_at, updated_at, deleted_at)
-VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-		u.ID, u.Email, u.PasswordHash, u.Role, u.DisplayName, u.Timezone, u.Locale, u.Theme,
+VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		u.ID, u.Email, u.PasswordHash, u.DisplayName, u.Timezone, u.Locale, u.Theme,
 		botToken, allowed, chatID, chatUserID, configuredAt, formatTime(u.CreatedAt), formatTime(u.UpdatedAt), deletedAt)
 	if err != nil {
 		if isUniqueViolation(err) {
@@ -151,8 +148,8 @@ func (s *Users) ListTelegramEnabled(ctx context.Context) ([]*models.User, error)
 func (s *Users) Update(ctx context.Context, u *models.User) error {
 	u.UpdatedAt = time.Now().UTC()
 	_, err := s.db.ExecContext(ctx, `UPDATE users SET
- email=?, role=?, display_name=?, timezone=?, locale=?, theme=?, updated_at=? WHERE id=? AND deleted_at IS NULL`,
-		u.Email, u.Role, u.DisplayName, u.Timezone, u.Locale, u.Theme, formatTime(u.UpdatedAt), u.ID)
+ email=?, display_name=?, timezone=?, locale=?, theme=?, updated_at=? WHERE id=? AND deleted_at IS NULL`,
+		u.Email, u.DisplayName, u.Timezone, u.Locale, u.Theme, formatTime(u.UpdatedAt), u.ID)
 	if err != nil {
 		if isUniqueViolation(err) {
 			return fmt.Errorf("%w: email %s already exists", models.ErrConflict, u.Email)

@@ -2,7 +2,6 @@ CREATE TABLE users (
     id                   TEXT PRIMARY KEY,
     email                TEXT NOT NULL,
     password_hash        TEXT NOT NULL,
-    role                 TEXT NOT NULL DEFAULT 'user',
     display_name         TEXT NOT NULL DEFAULT '',
     timezone             TEXT NOT NULL DEFAULT 'Europe/Athens',
     locale               TEXT NOT NULL DEFAULT 'en',

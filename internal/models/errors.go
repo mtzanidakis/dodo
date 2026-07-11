@@ -13,17 +13,6 @@ var (
 	ErrValidation   = errors.New("validation error")
 )
 
-type Role string
-
-const (
-	RoleAdmin Role = "admin"
-	RoleUser  Role = "user"
-)
-
-func (r Role) Valid() bool {
-	return r == RoleAdmin || r == RoleUser
-}
-
 type Priority string
 
 const (
@@ -115,12 +104,4 @@ func ParseRecurrenceFreq(s string) (RecurrenceFreq, error) {
 		return "", fmt.Errorf("%w: invalid recurrence freq %q", ErrValidation, s)
 	}
 	return f, nil
-}
-
-func ParseRole(s string) (Role, error) {
-	r := Role(s)
-	if !r.Valid() {
-		return "", fmt.Errorf("%w: invalid role %q", ErrValidation, s)
-	}
-	return r, nil
 }

@@ -6,7 +6,6 @@ type User struct {
 	ID                   string
 	Email                string
 	PasswordHash         string
-	Role                 Role
 	DisplayName          string
 	Timezone             string
 	Locale               Locale
