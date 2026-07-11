@@ -87,7 +87,7 @@ func (a *App) usage() {
 Commands:
   init [--url URL --token TOKEN]
   me
-  tasks list [--filter=pending|completed|all] [--priority] [--from] [--to] [--view=list|calendar] [--limit] [--cursor]
+  tasks list [--filter=pending|completed|all] [--period=all|today|week|month] [--priority] [--from] [--to] [--limit] [--cursor]
   tasks get <id>
   tasks create --title --due [--priority] [--desc] [--repeat=freq:interval:byday] [--repeat-end]
   tasks update <id> [--title] [--due] [--priority] [--desc] [--recalculate]
