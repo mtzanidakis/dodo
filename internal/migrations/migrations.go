@@ -80,6 +80,20 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 	return nil
 }
 
+// Applied returns the sorted list of migration versions recorded as applied.
+func Applied(ctx context.Context, db *sql.DB) ([]int, error) {
+	m, err := appliedVersions(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]int, 0, len(m))
+	for v := range m {
+		out = append(out, v)
+	}
+	sort.Ints(out)
+	return out, nil
+}
+
 func appliedVersions(ctx context.Context, db *sql.DB) (map[int]bool, error) {
 	rows, err := db.QueryContext(ctx, `SELECT version FROM schema_migrations`)
 	if err != nil {

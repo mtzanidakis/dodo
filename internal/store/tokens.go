@@ -83,6 +83,18 @@ func (s *Tokens) List(ctx context.Context, userID string) ([]*models.APIToken, e
 	return out, rows.Err()
 }
 
+// GetByPrefix looks up an active (non-revoked) token by its public prefix
+// across all users. Used by the admin CLI's `token revoke --prefix`.
+func (s *Tokens) GetByPrefix(ctx context.Context, prefix string) (*models.APIToken, error) {
+	t := &models.APIToken{}
+	err := scanToken(s.db.QueryRowContext(ctx,
+		"SELECT "+tokenColumns()+" FROM api_tokens WHERE token_prefix = ? AND revoked_at IS NULL", prefix), t)
+	if err != nil {
+		return nil, NotFound(err)
+	}
+	return t, nil
+}
+
 func (s *Tokens) Get(ctx context.Context, userID, id string) (*models.APIToken, error) {
 	t := &models.APIToken{}
 	err := scanToken(s.db.QueryRowContext(ctx,
