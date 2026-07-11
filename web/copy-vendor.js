@@ -47,13 +47,17 @@ fs.writeFileSync(path.join(out, "app.css"), appCSS);
 const appJS = fs.readFileSync(path.join(srcDir, "app.js"), "utf8");
 fs.writeFileSync(path.join(out, "app.js"), appJS);
 
+const logo = fs.readFileSync(path.join(srcDir, "logo.png"));
+fs.writeFileSync(path.join(out, "logo.png"), logo);
+
 const hash = crypto
   .createHash("sha256")
   .update(vendorJS)
   .update(appCSS)
   .update(appJS)
+  .update(logo)
   .digest("hex")
   .slice(0, 12);
 fs.writeFileSync(path.join(out, "version.txt"), hash + "\n");
 
-console.log("dist built:", "version=" + hash, "(vendor.js, app.css, app.js, version.txt)");
+console.log("dist built:", "version=" + hash, "(vendor.js, app.css, app.js, logo.png, version.txt)");

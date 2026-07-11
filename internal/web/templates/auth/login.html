@@ -1,6 +1,6 @@
 {{define "content"}}
 <section class="card panel" style="max-width:22rem;margin:8vh auto">
-  <div class="brand" style="font-size:1.4rem;margin-bottom:0.25rem"><span class="dot"></span>dodo</div>
+  <img class="brand-logo" src="/static/{{.AssetVersion}}/logo.png" alt="dodo" style="height:56px;margin-bottom:0.4rem">
   <p class="hint" style="margin-top:0">{{t .Lang "app.tagline"}}</p>
   {{if .Error}}<div class="alert alert-error">{{.Error}}</div>{{end}}
   <form method="POST" action="/login">

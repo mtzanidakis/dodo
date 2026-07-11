@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="web/src/logo.png" width="160" alt="dodo">
+</p>
+
 # dodo
 
 A self-hosted todo & reminders service. MIT licensed.
