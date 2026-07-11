@@ -3,13 +3,13 @@
   <div class="toolbar">
     <div class="segmented">
       <a href="/?view=list&filter={{.Filter}}&period={{.Period}}" class="{{if ne .View "calendar"}}active{{end}}">{{t .Lang "view.list"}}</a>
-      <a href="/?view=calendar&filter={{.Filter}}" class="{{if eq .View "calendar"}}active{{end}}">{{t .Lang "view.calendar"}}</a>
+      <a href="/?view=calendar&filter={{.Filter}}{{if .Calendar}}&month={{.Calendar.Month}}{{end}}" class="{{if eq .View "calendar"}}active{{end}}">{{t .Lang "view.calendar"}}</a>
     </div>
     <div class="segmented">
       {{if eq .View "calendar"}}
-      <a href="/?view=calendar&filter=pending" class="{{if eq .Filter "pending"}}active{{end}}">{{t .Lang "filter.pending"}}</a>
-      <a href="/?view=calendar&filter=completed" class="{{if eq .Filter "completed"}}active{{end}}">{{t .Lang "filter.completed"}}</a>
-      <a href="/?view=calendar&filter=all" class="{{if eq .Filter "all"}}active{{end}}">{{t .Lang "filter.all"}}</a>
+      <a href="/?view=calendar&filter=pending&month={{.Calendar.Month}}" class="{{if eq .Filter "pending"}}active{{end}}">{{t .Lang "filter.pending"}}</a>
+      <a href="/?view=calendar&filter=completed&month={{.Calendar.Month}}" class="{{if eq .Filter "completed"}}active{{end}}">{{t .Lang "filter.completed"}}</a>
+      <a href="/?view=calendar&filter=all&month={{.Calendar.Month}}" class="{{if eq .Filter "all"}}active{{end}}">{{t .Lang "filter.all"}}</a>
       {{else}}
       <a href="/?filter=pending&period={{.Period}}" class="{{if eq .Filter "pending"}}active{{end}}">{{t .Lang "filter.pending"}}</a>
       <a href="/?filter=completed&period={{.Period}}" class="{{if eq .Filter "completed"}}active{{end}}">{{t .Lang "filter.completed"}}</a>

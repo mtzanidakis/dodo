@@ -337,6 +337,7 @@ type calDay struct {
 
 type calendarView struct {
 	MonthLabel string
+	Month      string // "2006-01" of the displayed month, for preserving it in links
 	Prev       string
 	Next       string
 	DOW        []string
@@ -426,6 +427,7 @@ func (h *Handler) buildCalendar(r *http.Request, u *models.User, loc *time.Locat
 	lang := string(u.Locale)
 	return &calendarView{
 		MonthLabel: first.Format("January 2006"),
+		Month:      first.Format("2006-01"),
 		Prev:       first.AddDate(0, -1, 0).Format("2006-01"),
 		Next:       next.Format("2006-01"),
 		DOW: []string{
