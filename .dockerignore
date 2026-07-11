@@ -9,6 +9,12 @@ web/node_modules
 
 # local secrets and env
 mise.local.toml
+.env
+
+# deployment state
+/compose.override.yaml
+/tsrp-state
+/dumps
 
 # runtime state and databases
 /data

@@ -59,6 +59,40 @@ this-month and pending/completed/all filters), a month calendar,
 per-user profile, API token management, Telegram setup, dark/light/
 system theme, and English/Greek locales.
 
+## Deploy with Docker Compose
+
+The repo ships a `compose.yaml`. Configure the encryption key and start it:
+
+```
+cp .env.example .env && chmod 600 .env
+# edit .env: set DODO_ENCRYPTION_KEY (openssl rand -base64 32)
+docker compose up -d
+
+# first user + a CLI token
+docker compose exec dodo dodo admin user create --email you@example.com --password supersecret
+docker compose exec dodo dodo admin token create --email you@example.com --name agent
+```
+
+The web UI is at `http://localhost:8080`.
+
+### Production (Tailscale, no exposed ports)
+
+`compose.override.yaml-prod` fronts dodo with
+[`tsrp`](https://github.com/mtzanidakis/tsrp), a Tailscale reverse proxy, and
+removes the published port so the service is reachable only on your tailnet.
+Activate the override and set the Tailscale vars:
+
+```
+ln -s compose.override.yaml-prod compose.override.yaml   # compose auto-merges compose.override.yaml
+# in .env: HOSTNAME=dodo  and  TS_AUTHKEY=tskey-auth-...
+docker compose up -d
+```
+
+dodo is then served at `https://dodo.<your-tailnet>.ts.net`. The override also
+bind-mounts `./dumps` and adds hourly `dodo backup` labels for
+[ofelia](https://github.com/mcuadros/ofelia) — run an ofelia scheduler
+alongside the stack to execute them.
+
 ## Server env vars
 
 See `AGENTS.md` for the full table. Highlights:
