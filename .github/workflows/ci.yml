@@ -27,6 +27,7 @@ jobs:
       - uses: jdx/mise-action@v2
         with:
           experimental: true
+      - run: mise run web:build
       - run: mise run lint
 
   test:
@@ -36,6 +37,7 @@ jobs:
       - uses: jdx/mise-action@v2
         with:
           experimental: true
+      - run: mise run web:build
       - run: go vet ./...
       - run: gofmt -l . | tee gofmt.out && test ! -s gofmt.out
       - run: go test -race -covermode=atomic -coverprofile=coverage.out ./...
@@ -51,4 +53,5 @@ jobs:
       - uses: jdx/mise-action@v2
         with:
           experimental: true
+      - run: mise run web:build
       - run: mise run build-all
