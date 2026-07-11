@@ -302,7 +302,9 @@ textarea { resize: vertical; min-height: 4rem; }
 .cal-ev.prio-low { border-left-color: var(--prio-low); }
 .cal-ev.done { opacity: 0.5; text-decoration: line-through; }
 .cal-head { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.9rem; }
-.cal-head .month { font-weight: 700; font-size: 1.05rem; }
+.cal-title { flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.9rem; }
+.cal-head .month { font-weight: 700; font-size: 1.2rem; letter-spacing: -0.01em; }
+.btn-nav { font-size: 1.35rem; line-height: 1; padding: 0.25rem 1rem; font-weight: 600; }
 
 /* ---------- tokens table ---------- */
 .table { width: 100%; border-collapse: collapse; }

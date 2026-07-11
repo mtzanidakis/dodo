@@ -3,15 +3,19 @@
   <div class="toolbar">
     <div class="segmented">
       <a href="/?view=list&filter={{.Filter}}&period={{.Period}}" class="{{if ne .View "calendar"}}active{{end}}">{{t .Lang "view.list"}}</a>
-      <a href="/?view=calendar" class="{{if eq .View "calendar"}}active{{end}}">{{t .Lang "view.calendar"}}</a>
+      <a href="/?view=calendar&filter={{.Filter}}" class="{{if eq .View "calendar"}}active{{end}}">{{t .Lang "view.calendar"}}</a>
     </div>
-    {{if ne .View "calendar"}}
     <div class="segmented">
+      {{if eq .View "calendar"}}
+      <a href="/?view=calendar&filter=pending" class="{{if eq .Filter "pending"}}active{{end}}">{{t .Lang "filter.pending"}}</a>
+      <a href="/?view=calendar&filter=completed" class="{{if eq .Filter "completed"}}active{{end}}">{{t .Lang "filter.completed"}}</a>
+      <a href="/?view=calendar&filter=all" class="{{if eq .Filter "all"}}active{{end}}">{{t .Lang "filter.all"}}</a>
+      {{else}}
       <a href="/?filter=pending&period={{.Period}}" class="{{if eq .Filter "pending"}}active{{end}}">{{t .Lang "filter.pending"}}</a>
       <a href="/?filter=completed&period={{.Period}}" class="{{if eq .Filter "completed"}}active{{end}}">{{t .Lang "filter.completed"}}</a>
       <a href="/?filter=all&period={{.Period}}" class="{{if eq .Filter "all"}}active{{end}}">{{t .Lang "filter.all"}}</a>
+      {{end}}
     </div>
-    {{end}}
     <div class="spacer"></div>
     <button class="btn btn-primary" @click="showForm = !showForm">+ {{t .Lang "action.new_task"}}</button>
   </div>
@@ -80,9 +84,12 @@
 {{define "calendar"}}
 <div class="calendar">
   <div class="cal-head">
-    <a class="btn btn-sm" href="/?view=calendar&month={{.Calendar.Prev}}">‹</a>
-    <span class="month">{{.Calendar.MonthLabel}}</span>
-    <a class="btn btn-sm" href="/?view=calendar&month={{.Calendar.Next}}">›</a>
+    <a class="btn btn-nav" href="/?view=calendar&filter={{$.Filter}}&month={{.Calendar.Prev}}" aria-label="previous month">‹</a>
+    <div class="cal-title">
+      <span class="month">{{.Calendar.MonthLabel}}</span>
+      <a class="btn btn-sm" href="/?view=calendar&filter={{$.Filter}}">{{t $.Lang "day.today"}}</a>
+    </div>
+    <a class="btn btn-nav" href="/?view=calendar&filter={{$.Filter}}&month={{.Calendar.Next}}" aria-label="next month">›</a>
   </div>
   <div class="cal-grid">
     {{range .Calendar.DOW}}<div class="cal-dow">{{.}}</div>{{end}}
