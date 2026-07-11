@@ -2,7 +2,7 @@
   "app.name": "dodo",
   "app.tagline": "your todos, simplified",
   "nav.tasks": "Tasks",
-  "nav.tokens": "Tokens",
+  "nav.tokens": "API tokens",
   "nav.account": "Account",
   "nav.logout": "Log out",
   "action.complete": "Complete",
