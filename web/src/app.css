@@ -299,6 +299,7 @@ textarea { resize: vertical; min-height: 4rem; }
 .cal-ev { font-size: 0.72rem; padding: 0.1rem 0.3rem; border-radius: 4px; background: var(--accent-soft); color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-left: 2px solid var(--prio-normal); }
 .cal-ev.prio-high { border-left-color: var(--prio-high); }
 .cal-ev.prio-low { border-left-color: var(--prio-low); }
+.cal-ev.done { opacity: 0.5; text-decoration: line-through; }
 .cal-head { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.9rem; }
 .cal-head .month { font-weight: 700; font-size: 1.05rem; }
 
