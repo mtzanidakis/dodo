@@ -15,14 +15,6 @@
 <header class="topbar">
   <a class="brand" href="/"><span class="dot"></span>dodo</a>
   <nav>
-    <form method="POST" action="/ui/locale" class="lang-switch">
-      <input type="hidden" name="_csrf" value="{{.CSRF}}">
-      {{if eq (printf "%s" .User.Locale) "el"}}
-      <button type="submit" name="locale" value="en" class="btn btn-sm" title="{{t .Lang "field.locale"}}">ΕΛ</button>
-      {{else}}
-      <button type="submit" name="locale" value="el" class="btn btn-sm" title="{{t .Lang "field.locale"}}">EN</button>
-      {{end}}
-    </form>
     <details class="dropdown theme-menu">
       <summary title="{{t .Lang "field.theme"}}">
         <span data-theme-icon>{{if eq (printf "%s" .User.Theme) "light"}}☀{{else if eq (printf "%s" .User.Theme) "dark"}}☾{{else}}◐{{end}}</span>
@@ -34,6 +26,14 @@
         <button type="button" data-set-theme="dark">☾ {{t .Lang "theme.dark"}}</button>
       </div>
     </details>
+    <form method="POST" action="/ui/locale" class="lang-switch">
+      <input type="hidden" name="_csrf" value="{{.CSRF}}">
+      {{if eq (printf "%s" .User.Locale) "el"}}
+      <button type="submit" name="locale" value="en" class="btn btn-sm" title="{{t .Lang "field.locale"}}">ΕΛ</button>
+      {{else}}
+      <button type="submit" name="locale" value="el" class="btn btn-sm" title="{{t .Lang "field.locale"}}">EN</button>
+      {{end}}
+    </form>
     <details class="dropdown usermenu">
       <summary title="{{.User.Email}}">
         <span class="avatar">{{slice .User.Email 0 1}}</span>
