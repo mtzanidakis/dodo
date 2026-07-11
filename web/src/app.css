@@ -133,6 +133,58 @@ h2 { font-size: 1.1rem; margin: 0 0 0.75rem; }
 .topbar nav a.active { color: var(--fg); background: var(--accent-soft); }
 .topbar .who { color: var(--fg-muted); font-size: 0.85rem; }
 
+/* ---------- user menu ---------- */
+.usermenu { position: relative; }
+.usermenu > summary {
+  list-style: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: var(--radius-sm);
+}
+.usermenu > summary::-webkit-details-marker { display: none; }
+.usermenu > summary::marker { content: ""; }
+.usermenu > summary:hover,
+.usermenu[open] > summary { background: var(--bg-subtle); }
+.usermenu .avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-fg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.usermenu .caret { font-size: 0.7rem; color: var(--fg-muted); }
+.usermenu[open] .caret { transform: rotate(180deg); }
+.usermenu .menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  min-width: 190px;
+  padding: 0.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  z-index: 40;
+}
+.usermenu .menu a {
+  padding: 0.5rem 0.7rem;
+  border-radius: var(--radius-sm);
+  color: var(--fg);
+  font-weight: 500;
+}
+.usermenu .menu a:hover { background: var(--bg-subtle); text-decoration: none; }
+.usermenu .menu a.active { color: var(--accent); }
+.usermenu .menu hr { margin: 0.3rem 0; }
+
 main { max-width: 880px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
 .narrow { max-width: 520px; }
 
