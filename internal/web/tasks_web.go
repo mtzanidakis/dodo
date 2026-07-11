@@ -24,6 +24,8 @@ type taskView struct {
 	Recurring       bool
 	RecurrenceLabel string
 	Completed       bool
+	CompletedLocal  string // when a completed occurrence was finished
+	Deletable       bool   // completed history rows are read-only unless backed by a live task
 	Snoozed         bool
 	SnoozedUntil    string
 }
@@ -121,6 +123,72 @@ func (h *Handler) buildGroups(tasks []*models.Task, loc *time.Location, lang str
 	return groups
 }
 
+// buildCompletedGroups renders the completed view as a history of finished
+// occurrences grouped by the day they were completed. Every completed
+// repetition of a recurring task (from task_completions) is listed, plus
+// genuine completed one-off tasks; recurring task rows themselves are excluded
+// so a still-pending or stale series never shows as a phantom completed entry.
+func (h *Handler) buildCompletedGroups(r *http.Request, u *models.User, loc *time.Location, now time.Time, period string) []dayGroup {
+	lang := string(u.Locale)
+	from, to := models.PeriodBounds(period, now)
+
+	type item struct {
+		view        taskView
+		completedAt time.Time
+	}
+	var items []item
+
+	compls, _ := h.deps.Store.Completions.List(r.Context(), u.ID, from, to)
+	for _, c := range compls {
+		items = append(items, item{
+			completedAt: c.CompletedAt,
+			view: taskView{
+				ID:             c.ID,
+				Title:          c.Title,
+				Priority:       c.Priority,
+				DueLocal:       c.DueAt.In(loc).Format("Mon 2 Jan 15:04"),
+				CompletedLocal: c.CompletedAt.In(loc).Format("15:04"),
+				Completed:      true,
+			},
+		})
+	}
+
+	recurring, _ := h.deps.Store.Completions.TaskIDs(r.Context(), u.ID)
+	tf := models.TaskFilter{Filter: "completed", Limit: 500}
+	tf.ApplyPeriod(period, now)
+	tasks, _, _ := h.deps.Store.Tasks.List(r.Context(), u.ID, tf)
+	for _, t := range tasks {
+		if t.Recurring() || recurring[t.ID] {
+			continue
+		}
+		completedAt := now
+		if t.CompletedAt != nil {
+			completedAt = *t.CompletedAt
+		}
+		tv := h.toTaskView(t, loc, lang, now)
+		tv.DueLocal = t.DueAt.In(loc).Format("Mon 2 Jan 15:04")
+		tv.CompletedLocal = completedAt.In(loc).Format("15:04")
+		tv.Deletable = true
+		items = append(items, item{view: tv, completedAt: completedAt})
+	}
+
+	sort.SliceStable(items, func(i, j int) bool { return items[i].completedAt.After(items[j].completedAt) })
+
+	var groups []dayGroup
+	curKey := ""
+	for _, it := range items {
+		local := it.completedAt.In(loc)
+		key := local.Format("2006-01-02")
+		if key != curKey || len(groups) == 0 {
+			groups = append(groups, dayGroup{Label: dayLabel(local, now, lang)})
+			curKey = key
+		}
+		g := &groups[len(groups)-1]
+		g.Tasks = append(g.Tasks, it.view)
+	}
+	return groups
+}
+
 func (h *Handler) handleHome(w http.ResponseWriter, r *http.Request) {
 	u := auth.UserFromContext(r.Context())
 	loc := loadLoc(u.Timezone)
@@ -143,6 +211,12 @@ func (h *Handler) handleHome(w http.ResponseWriter, r *http.Request) {
 
 	if view == "calendar" {
 		pd.Calendar = h.buildCalendar(r, u, loc, now)
+		h.render(w, "tasks/index.html", pd)
+		return
+	}
+
+	if filter == "completed" {
+		pd.Groups = h.buildCompletedGroups(r, u, loc, now, period)
 		h.render(w, "tasks/index.html", pd)
 		return
 	}
