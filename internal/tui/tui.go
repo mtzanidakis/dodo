@@ -75,15 +75,20 @@ func checkStatus(status int, body []byte) error {
 
 // ListTasks returns pending tasks (kept for backward compatibility / tests).
 func (c *Client) ListTasks() ([]taskItem, error) {
-	return c.ListTasksFilter("pending")
+	return c.ListTasksFilter("pending", "all")
 }
 
-// ListTasksFilter fetches tasks for the given filter (pending|completed|all).
-func (c *Client) ListTasksFilter(filter string) ([]taskItem, error) {
+// ListTasksFilter fetches tasks for the given status
+// (pending|completed|all) and time period (all|today|week|month), which
+// combine as independent filters.
+func (c *Client) ListTasksFilter(filter, period string) ([]taskItem, error) {
 	if filter == "" {
 		filter = "pending"
 	}
-	status, b, err := c.request("GET", "/api/v1/tasks?filter="+filter+"&limit=200", nil)
+	if period == "" {
+		period = "all"
+	}
+	status, b, err := c.request("GET", "/api/v1/tasks?filter="+filter+"&period="+period+"&limit=200", nil)
 	if err != nil {
 		return nil, err
 	}

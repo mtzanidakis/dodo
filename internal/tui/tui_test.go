@@ -108,11 +108,11 @@ func TestTUIClientListFilter(t *testing.T) {
 	if err := c.Complete(items[0].ID); err != nil {
 		t.Fatalf("complete: %v", err)
 	}
-	completed, err := c.ListTasksFilter("completed")
+	completed, err := c.ListTasksFilter("completed", "all")
 	if err != nil || len(completed) != 1 {
 		t.Fatalf("list completed: %v len=%d", err, len(completed))
 	}
-	all, err := c.ListTasksFilter("all")
+	all, err := c.ListTasksFilter("all", "all")
 	if err != nil || len(all) != 1 {
 		t.Fatalf("list all: %v len=%d", err, len(all))
 	}

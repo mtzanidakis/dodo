@@ -139,17 +139,24 @@ func nextPriority(p string) string {
 	}
 }
 
-// nextFilter cycles the list filter: pending -> completed -> all -> pending.
-func nextFilter(f string) string {
-	switch f {
-	case "pending":
-		return "completed"
-	case "completed":
-		return "all"
-	default:
-		return "pending"
+// statusCycle and periodCycle are the two independent list-filter axes,
+// advanced by the `t` and `p` keys respectively.
+var (
+	statusCycle = []string{"pending", "completed", "all"}
+	periodCycle = []string{"all", "today", "week", "month"}
+)
+
+func advanceCycle(cycle []string, cur string) string {
+	for i, v := range cycle {
+		if v == cur {
+			return cycle[(i+1)%len(cycle)]
+		}
 	}
+	return cycle[0]
 }
+
+func nextStatus(s string) string { return advanceCycle(statusCycle, s) }
+func nextPeriod(p string) string { return advanceCycle(periodCycle, p) }
 
 // parseHumanTime is adapted from internal/cli; it accepts a handful of human
 // friendly forms ("now", "now+2h", "tomorrow 10:00") plus common layouts.

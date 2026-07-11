@@ -26,6 +26,7 @@ type model struct {
 	height int
 	user   string
 	filter string
+	period string
 
 	mode   mode
 	form   taskForm
@@ -33,7 +34,7 @@ type model struct {
 }
 
 func initialModel(c *Client) model {
-	m := model{client: c, filter: "pending"}
+	m := model{client: c, filter: "pending", period: "all"}
 	if u, err := c.Me(); err == nil {
 		m.user = u
 	}
@@ -44,7 +45,7 @@ func initialModel(c *Client) model {
 func (m model) Init() tea.Cmd { return nil }
 
 func (m *model) reload() {
-	items, err := m.client.ListTasksFilter(m.filter)
+	items, err := m.client.ListTasksFilter(m.filter, m.period)
 	if err != nil {
 		m.err = err.Error()
 		return
@@ -129,7 +130,11 @@ func (m model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.mode = modeSnooze
 		}
 	case "t":
-		m.filter = nextFilter(m.filter)
+		m.filter = nextStatus(m.filter)
+		m.cursor = 0
+		m.reload()
+	case "p":
+		m.period = nextPeriod(m.period)
 		m.cursor = 0
 		m.reload()
 	case "?":
