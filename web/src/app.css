@@ -189,6 +189,7 @@ h2 { font-size: 1.1rem; margin: 0 0 0.75rem; }
 .dropdown .menu hr { margin: 0.3rem 0; }
 .theme-menu > summary { font-size: 1rem; }
 
+.usermenu > summary { padding: 0.2rem; }
 .usermenu .avatar {
   width: 26px;
   height: 26px;
