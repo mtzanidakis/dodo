@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-func TestNextFilter(t *testing.T) {
+func TestNextStatus(t *testing.T) {
 	cases := map[string]string{
 		"pending":   "completed",
 		"completed": "all",
@@ -13,17 +13,32 @@ func TestNextFilter(t *testing.T) {
 		"":          "pending",
 	}
 	for in, want := range cases {
-		if got := nextFilter(in); got != want {
-			t.Errorf("nextFilter(%q) = %q, want %q", in, got, want)
+		if got := nextStatus(in); got != want {
+			t.Errorf("nextStatus(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestNextPeriod(t *testing.T) {
+	cases := map[string]string{
+		"all":   "today",
+		"today": "week",
+		"week":  "month",
+		"month": "all",
+		"":      "all",
+	}
+	for in, want := range cases {
+		if got := nextPeriod(in); got != want {
+			t.Errorf("nextPeriod(%q) = %q, want %q", in, got, want)
 		}
 	}
 	// Full cycle returns to start.
-	f := "pending"
-	for i := 0; i < 3; i++ {
-		f = nextFilter(f)
+	p := "all"
+	for range periodCycle {
+		p = nextPeriod(p)
 	}
-	if f != "pending" {
-		t.Errorf("cycle did not return to pending, got %q", f)
+	if p != "all" {
+		t.Errorf("cycle did not return to all, got %q", p)
 	}
 }
 

@@ -70,12 +70,12 @@ func (m model) listView() string {
 		b.WriteString("\n" + errStyle.Render("error: "+m.err) + "\n")
 	}
 	b.WriteString("\n" + m.statusBar())
-	b.WriteString("\n" + hintStyle.Render("↑/↓ move  c complete  enter detail  n new  d delete  s snooze  t filter  r refresh  ? help  q quit"))
+	b.WriteString("\n" + hintStyle.Render("↑/↓ move  c complete  enter detail  n new  d delete  s snooze  t status  p period  r refresh  ? help  q quit"))
 	return b.String()
 }
 
 func (m model) statusBar() string {
-	return hintStyle.Render(fmt.Sprintf("filter: %s   tasks: %d", m.filter, len(m.items)))
+	return hintStyle.Render(fmt.Sprintf("status: %s   period: %s   tasks: %d", m.filter, m.period, len(m.items)))
 }
 
 func (m model) formView() string {
@@ -193,7 +193,8 @@ func (m model) helpView() string {
 		{"n", "new task"},
 		{"d", "delete task (confirm)"},
 		{"s", "snooze task"},
-		{"t", "cycle filter (pending/completed/all)"},
+		{"t", "cycle status (pending/completed/all)"},
+		{"p", "cycle period (all/today/week/month)"},
 		{"r", "refresh list"},
 		{"?", "toggle this help"},
 		{"q, ctrl+c", "quit"},
