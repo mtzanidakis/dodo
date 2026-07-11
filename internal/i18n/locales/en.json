@@ -103,5 +103,12 @@
   "error.required": "required",
   "error.invalid": "invalid",
   "ws.connected": "connected",
-  "ws.reconnecting": "reconnecting"
+  "ws.reconnecting": "reconnecting",
+  "notify.title": "Browser notifications",
+  "notify.help": "Get a desktop notification when a task is due, while dodo is open in a tab.",
+  "notify.enable": "Enable notifications",
+  "notify.enabled": "Notifications enabled",
+  "notify.disabled": "Notifications not enabled",
+  "notify.blocked": "Blocked in your browser settings",
+  "notify.unsupported": "Not supported by this browser"
 }

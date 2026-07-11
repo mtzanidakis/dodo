@@ -90,6 +90,40 @@
     }, 3500);
   }
 
+  // ---- browser notifications ------------------------------------------
+  function notifySupported() {
+    return "Notification" in window;
+  }
+
+  function notify(title, body, tag) {
+    if (!notifySupported() || Notification.permission !== "granted") return;
+    try {
+      var n = new Notification(title, { body: body, tag: tag });
+      n.onclick = function () {
+        window.focus();
+        n.close();
+      };
+    } catch (e) {}
+  }
+
+  function updateNotifyUI() {
+    var status = document.querySelector("[data-notify-status]");
+    var btn = document.querySelector("[data-notify-enable]");
+    if (!status && !btn) return;
+    var state = !notifySupported() ? "unsupported" : Notification.permission;
+    if (status) status.setAttribute("data-state", state);
+    if (btn) btn.hidden = state !== "default";
+  }
+
+  document.addEventListener("click", function (e) {
+    var el = e.target.closest ? e.target.closest("[data-notify-enable]") : null;
+    if (el && notifySupported()) {
+      Notification.requestPermission().then(updateNotifyUI);
+    }
+  });
+
+  updateNotifyUI();
+
   // ---- live list refresh (debounced) ----------------------------------
   var refreshTimer = null;
   function refreshList() {
@@ -144,7 +178,10 @@
           break;
         case "task.due":
           refreshList();
-          if (evt.payload && evt.payload.title) toast("⏰ " + evt.payload.title);
+          if (evt.payload && evt.payload.title) {
+            toast("⏰ " + evt.payload.title);
+            notify(evt.payload.title, "Due now", "task-" + (evt.payload.id || ""));
+          }
           break;
         default:
           break;
