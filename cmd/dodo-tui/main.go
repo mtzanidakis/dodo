@@ -4,6 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+
+	"github.com/mtzanidakis/dodo/internal/clientconfig"
+	"github.com/mtzanidakis/dodo/internal/tui"
 )
 
 func main() {
@@ -18,19 +21,25 @@ Usage:
   dodo-tui [--url <api>] [--token <token>] [--config <path>]
 
 Flags:
-  --url
-  --token
-  --config path to config.json (default ~/.config/dodo/config.json)
+  --url, --token, --config path to config.json (default ~/.config/dodo/config.json)
 `)
 	}
 	flag.Parse()
-	_ = configPath
-	_ = url
-	_ = token
 	if *help {
 		flag.Usage()
 		return
 	}
-	fmt.Fprintln(os.Stderr, "not implemented")
-	os.Exit(1)
+	cfg, err := clientconfig.Load(clientconfig.Flags{ConfigPath: *configPath, URL: *url, Token: *token})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		os.Exit(1)
+	}
+	if cfg.URL == "" || cfg.Token == "" {
+		fmt.Fprintln(os.Stderr, "error: missing url or token (run dodo-cli init or pass --url/--token)")
+		os.Exit(5)
+	}
+	if err := tui.Run(cfg); err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		os.Exit(1)
+	}
 }
