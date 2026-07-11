@@ -21,10 +21,13 @@ type stubTG struct{}
 
 func (stubTG) ValidateToken(context.Context, string) (string, error)  { return "b", nil }
 func (stubTG) SendTest(context.Context, string, string, string) error { return nil }
-func (stubTG) StartForUser(context.Context, string) error             { return nil }
-func (stubTG) StopForUser(string) error                               { return nil }
-func (stubTG) StartAll(context.Context) error                         { return nil }
-func (stubTG) StopAll()                                               {}
+func (stubTG) SendReminder(context.Context, string, string, string, string, string) error {
+	return nil
+}
+func (stubTG) StartForUser(context.Context, string) error { return nil }
+func (stubTG) StopForUser(string) error                   { return nil }
+func (stubTG) StartAll(context.Context) error             { return nil }
+func (stubTG) StopAll()                                   {}
 
 func newEnv(t *testing.T) (*httptest.Server, string) {
 	t.Helper()
@@ -57,10 +60,10 @@ func newEnv(t *testing.T) (*httptest.Server, string) {
 func TestTUIClientListCreateComplete(t *testing.T) {
 	hs, tok := newEnv(t)
 	c := tui.NewClient(clientconfig.ClientConfig{URL: hs.URL, Token: tok})
-	if err := c.Create("Pay rent", "2026-07-11T11:00:00Z", "high"); err != nil {
+	if err := c.Create("Pay rent", "2026-07-11T11:00:00Z", "high", "monthly bill"); err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	if err := c.Create("Buy milk", "2026-07-11T08:00:00Z", "normal"); err != nil {
+	if err := c.Create("Buy milk", "2026-07-11T08:00:00Z", "normal", ""); err != nil {
 		t.Fatalf("create2: %v", err)
 	}
 	items, err := c.ListTasks()
@@ -77,7 +80,40 @@ func TestTUIClientListCreateComplete(t *testing.T) {
 	if len(rest) != 1 {
 		t.Fatalf("expected 1 pending after complete, got %d", len(rest))
 	}
+	if err := c.Snooze(rest[0].ID, "2026-07-12T09:00:00Z"); err != nil {
+		t.Fatalf("snooze: %v", err)
+	}
+	if err := c.Delete(rest[0].ID); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	after, _ := c.ListTasks()
+	if len(after) != 0 {
+		t.Fatalf("expected 0 pending after delete, got %d", len(after))
+	}
 	if email, _ := c.Me(); email != "t@x.com" {
 		t.Fatalf("me: %s", email)
+	}
+}
+
+func TestTUIClientListFilter(t *testing.T) {
+	hs, tok := newEnv(t)
+	c := tui.NewClient(clientconfig.ClientConfig{URL: hs.URL, Token: tok})
+	if err := c.Create("Task A", "2026-07-11T11:00:00Z", "high", ""); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	items, err := c.ListTasks()
+	if err != nil || len(items) != 1 {
+		t.Fatalf("list pending: %v len=%d", err, len(items))
+	}
+	if err := c.Complete(items[0].ID); err != nil {
+		t.Fatalf("complete: %v", err)
+	}
+	completed, err := c.ListTasksFilter("completed")
+	if err != nil || len(completed) != 1 {
+		t.Fatalf("list completed: %v len=%d", err, len(completed))
+	}
+	all, err := c.ListTasksFilter("all")
+	if err != nil || len(all) != 1 {
+		t.Fatalf("list all: %v len=%d", err, len(all))
 	}
 }
