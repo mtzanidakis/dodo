@@ -64,6 +64,29 @@ func Load() (Config, error) {
 	return c, nil
 }
 
+func LoadAdmin() (Config, error) {
+	c := Config{
+		DatabasePath:      env("DODO_DATABASE_PATH", "/data/dodo.sqlite"),
+		Listen:            env("DODO_LISTEN", ":8080"),
+		DefaultLocale:     env("DODO_DEFAULT_LOCALE", "en"),
+		DefaultTimezone:   env("DODO_DEFAULT_TIMEZONE", "Europe/Athens"),
+		SchedulerInterval: envDuration("DODO_SCHEDULER_INTERVAL", time.Minute),
+		LogLevel:          env("DODO_LOG_LEVEL", "info"),
+	}
+	if c.DatabasePath == "" {
+		return Config{}, errors.New("DODO_DATABASE_PATH must not be empty")
+	}
+	if _, err := time.LoadLocation(c.DefaultTimezone); err != nil {
+		return Config{}, fmt.Errorf("invalid DODO_DEFAULT_TIMEZONE %q: %w", c.DefaultTimezone, err)
+	}
+	switch strings.ToLower(c.LogLevel) {
+	case "debug", "info", "warn", "error":
+	default:
+		return Config{}, fmt.Errorf("invalid DODO_LOG_LEVEL %q", c.LogLevel)
+	}
+	return c, nil
+}
+
 func decodeEncryptionKey(raw string) ([]byte, error) {
 	b, err := base64.StdEncoding.DecodeString(raw)
 	if err == nil && len(b) == 32 {
