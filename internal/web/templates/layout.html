@@ -14,7 +14,7 @@
 <body hx-headers='{"X-CSRF-Token":"{{.CSRF}}"}'>
 {{if .User}}
 <header class="topbar">
-  <a class="brand" href="/"><img class="brand-logo" src="/static/{{.AssetVersion}}/logo.png" alt="dodo"></a>
+  <a class="brand" href="/"><img class="brand-logo" src="/static/{{.AssetVersion}}/logo.png" alt="dodo"><span>dodo</span></a>
   <nav>
     <details class="dropdown theme-menu">
       <summary title="{{t .Lang "field.theme"}}">

@@ -1,7 +1,6 @@
 {{define "content"}}
 <section class="card panel" style="max-width:22rem;margin:8vh auto">
-  <img class="brand-logo" src="/static/{{.AssetVersion}}/logo.png" alt="dodo" style="height:56px;margin-bottom:0.4rem">
-  <p class="hint" style="margin-top:0">{{t .Lang "app.tagline"}}</p>
+  <img class="brand-logo" src="/static/{{.AssetVersion}}/logo.png" alt="dodo" style="height:104px;display:block;margin:0 auto 1.25rem">
   {{if .Error}}<div class="alert alert-error">{{.Error}}</div>{{end}}
   <form method="POST" action="/login">
     <label class="field"><span>{{t .Lang "field.email"}}</span>

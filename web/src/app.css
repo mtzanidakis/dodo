@@ -123,7 +123,7 @@ h2 { font-size: 1.1rem; margin: 0 0 0.75rem; }
   color: var(--fg);
 }
 .brand .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
-.brand-logo { height: 30px; width: auto; display: block; }
+.brand-logo { height: 34px; width: auto; display: block; }
 .topbar nav { display: flex; align-items: center; gap: 0.25rem; margin-left: auto; }
 .topbar nav a {
   color: var(--fg-muted);
