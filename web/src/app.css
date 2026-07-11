@@ -82,12 +82,13 @@ details.snooze { position: relative; display: inline-block; }
 details.snooze > summary { list-style: none; }
 details.snooze > summary::-webkit-details-marker { display: none; }
 
+html { font-size: 17px; }
 html, body { height: 100%; }
 
 body {
   margin: 0;
   font-family: var(--font);
-  font-size: 15px;
+  font-size: 1rem;
   line-height: 1.5;
   background: var(--bg);
   color: var(--fg);
