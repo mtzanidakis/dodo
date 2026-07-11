@@ -1,17 +1,25 @@
-// Bundles htmx + alpine into internal/web/dist/vendor.js so they are
-// served from /static/{version}/vendor.js (no CDN).
+// Builds the embedded frontend assets into internal/web/dist so they are
+// served from /static/{version}/... (no CDN):
+//   - vendor.js   : htmx + alpine, concatenated
+//   - app.css     : copied from web/src/app.css
+//   - app.js      : copied from web/src/app.js
+//   - version.txt : short content hash used for cache-busting the /static path
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 
-const out = path.join("..", "internal", "web", "dist");
+const srcDir = path.join(__dirname, "src");
+const out = path.join(__dirname, "..", "internal", "web", "dist");
 fs.mkdirSync(out, { recursive: true });
 
 const parts = [];
 
 function tryCopy(pkg, rel) {
-  const p = path.join("node_modules", pkg, rel);
+  const p = path.join(__dirname, "node_modules", pkg, rel);
   if (fs.existsSync(p)) {
-    const pkgJson = JSON.parse(fs.readFileSync(path.join("node_modules", pkg, "package.json"), "utf8"));
+    const pkgJson = JSON.parse(
+      fs.readFileSync(path.join(__dirname, "node_modules", pkg, "package.json"), "utf8"),
+    );
     parts.push(`/* ${pkg}@${pkgJson.version} */`);
     parts.push(fs.readFileSync(p, "utf8"));
     return true;
@@ -30,5 +38,22 @@ if (!tryCopy("alpinejs", "dist/cdn.min.js")) {
 }
 if (!ok) process.exit(1);
 
-fs.writeFileSync(path.join(out, "vendor.js"), parts.join("\n\n"));
-console.log("vendor.js written (" + parts.length + " chunks)");
+const vendorJS = parts.join("\n\n");
+fs.writeFileSync(path.join(out, "vendor.js"), vendorJS);
+
+const appCSS = fs.readFileSync(path.join(srcDir, "app.css"), "utf8");
+fs.writeFileSync(path.join(out, "app.css"), appCSS);
+
+const appJS = fs.readFileSync(path.join(srcDir, "app.js"), "utf8");
+fs.writeFileSync(path.join(out, "app.js"), appJS);
+
+const hash = crypto
+  .createHash("sha256")
+  .update(vendorJS)
+  .update(appCSS)
+  .update(appJS)
+  .digest("hex")
+  .slice(0, 12);
+fs.writeFileSync(path.join(out, "version.txt"), hash + "\n");
+
+console.log("dist built:", "version=" + hash, "(vendor.js, app.css, app.js, version.txt)");
