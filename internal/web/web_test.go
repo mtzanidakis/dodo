@@ -230,6 +230,21 @@ func TestCalendarShowsCompletedOccurrenceOnDueMonth(t *testing.T) {
 	}
 }
 
+func TestCalendarFilterLinksPreserveMonth(t *testing.T) {
+	mux, _, _, session := newWebEnv(t)
+	req := httptest.NewRequest(http.MethodGet, "/?view=calendar&filter=pending&month=2026-08", nil)
+	withSession(req, session)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	body := rec.Body.String()
+	if !strings.Contains(body, "/?view=calendar&filter=completed&month=2026-08") {
+		t.Fatalf("completed filter chip should keep the current month")
+	}
+	if !strings.Contains(body, "/?view=calendar&filter=all&month=2026-08") {
+		t.Fatalf("all filter chip should keep the current month")
+	}
+}
+
 func TestCalendarExpandsRecurringOccurrences(t *testing.T) {
 	mux, st, u, session := newWebEnv(t)
 	loc, _ := time.LoadLocation(u.Timezone)
