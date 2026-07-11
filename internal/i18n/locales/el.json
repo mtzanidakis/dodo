@@ -2,7 +2,7 @@
   "app.name": "dodo",
   "app.tagline": "οι εργασίες σου, απλά",
   "nav.tasks": "Εργασίες",
-  "nav.tokens": "Κλειδιά",
+  "nav.tokens": "Κλειδιά API",
   "nav.account": "Λογαριασμός",
   "nav.logout": "Αποσύνδεση",
   "action.complete": "Ολοκλήρωση",

@@ -39,8 +39,8 @@
         <span class="avatar">{{slice .User.Email 0 1}}</span>
       </summary>
       <div class="menu card">
-        <a href="/tokens" class="{{if eq .Nav "tokens"}}active{{end}}">{{t .Lang "nav.tokens"}}</a>
         <a href="/account" class="{{if eq .Nav "account"}}active{{end}}">{{t .Lang "nav.account"}}</a>
+        <a href="/tokens" class="{{if eq .Nav "tokens"}}active{{end}}">{{t .Lang "nav.tokens"}}</a>
         <hr>
         <a href="/logout">{{t .Lang "nav.logout"}}</a>
       </div>
