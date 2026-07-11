@@ -55,10 +55,10 @@ func usage() {
 	fmt.Fprint(os.Stderr, `dodo admin - direct DB admin tool
 
 Usage:
-  dodo admin user create      --email --password [--display-name] [--role=user|admin]
+  dodo admin user create      --email --password [--display-name]
   dodo admin user list
   dodo admin user get         --id | --email
-  dodo admin user update      --email [--display-name] [--role] [--active]
+  dodo admin user update      --email [--display-name] [--active]
   dodo admin user delete      --email
   dodo admin user reset-password --email --password
   dodo admin token create     --email --name   (prints full token once)
@@ -99,9 +99,9 @@ func output(v any, pretty bool) {
 func tablePrint(v any) {
 	switch list := v.(type) {
 	case []map[string]any:
-		fmt.Printf("%-26s %-30s %-8s %-10s\n", "ID", "EMAIL", "ROLE", "DISPLAY")
+		fmt.Printf("%-26s %-30s %-10s\n", "ID", "EMAIL", "DISPLAY")
 		for _, u := range list {
-			fmt.Printf("%-26s %-30s %-8s %-10s\n", u["id"], u["email"], u["role"], u["display_name"])
+			fmt.Printf("%-26s %-30s %-10s\n", u["id"], u["email"], u["display_name"])
 		}
 	case []*models.APIToken:
 		fmt.Printf("%-26s %-8s %-16s %-20s\n", "ID", "NAME", "PREFIX", "CREATED")
@@ -169,7 +169,6 @@ func userCreate(args []string) int {
 	email := fs.String("email", "", "email")
 	password := fs.String("password", "", "password")
 	displayName := fs.String("display-name", "", "display name")
-	role := fs.String("role", "user", "role")
 	pretty := fs.Bool("pretty", false, "human table output")
 	_ = fs.Parse(args)
 	if *email == "" || *password == "" {
@@ -187,26 +186,17 @@ func userCreate(args []string) int {
 	defer done()
 	ctx := context.Background()
 
-	users, _ := st.Users.List(ctx)
-	assignedRole := models.Role(*role)
-	if assignedRole == "" {
-		assignedRole = models.RoleUser
-	}
-	if len(users) == 0 && *role == "user" {
-		assignedRole = models.RoleAdmin
-		fmt.Fprintln(os.Stderr, "note: no users exist; first user promoted to admin")
-	}
 	hash, err := auth.HashPassword(*password)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		return 1
 	}
-	u := &models.User{Email: strings.ToLower(*email), PasswordHash: hash, Role: assignedRole, DisplayName: *displayName}
+	u := &models.User{Email: strings.ToLower(*email), PasswordHash: hash, DisplayName: *displayName}
 	if err := st.Users.Create(ctx, u); err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		return 1
 	}
-	_ = st.Audit.Log(ctx, u.ID, "admin.user.create", "user", u.ID, map[string]any{"email": u.Email, "role": u.Role})
+	_ = st.Audit.Log(ctx, u.ID, "admin.user.create", "user", u.ID, map[string]any{"email": u.Email})
 	output(toAdminUser(u), *pretty)
 	return 0
 }
@@ -233,9 +223,9 @@ func userList(args []string) int {
 		out = append(out, toAdminUser(u))
 	}
 	if pretty {
-		fmt.Printf("%-26s %-30s %-8s %-10s\n", "ID", "EMAIL", "ROLE", "DISPLAY")
+		fmt.Printf("%-26s %-30s %-10s\n", "ID", "EMAIL", "DISPLAY")
 		for _, u := range out {
-			fmt.Printf("%-26s %-30s %-8s %-10s\n", u["id"], u["email"], u["role"], u["display_name"])
+			fmt.Printf("%-26s %-30s %-10s\n", u["id"], u["email"], u["display_name"])
 		}
 		return 0
 	}
@@ -277,7 +267,6 @@ func userUpdate(args []string) int {
 	fs := flag.NewFlagSet("user update", flag.ExitOnError)
 	email := fs.String("email", "", "email")
 	displayName := fs.String("display-name", "", "display name")
-	role := fs.String("role", "", "role")
 	active := fs.String("active", "", "active: true|false")
 	yes := fs.Bool("yes", false, "skip confirmation")
 	_ = fs.Parse(args)
@@ -298,14 +287,6 @@ func userUpdate(args []string) int {
 	}
 	if *displayName != "" {
 		u.DisplayName = *displayName
-	}
-	if *role != "" {
-		r, err := models.ParseRole(*role)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "error:", err)
-			return 1
-		}
-		u.Role = r
 	}
 	if *active == "false" && u.DeletedAt == nil {
 		if !*yes {
@@ -527,7 +508,6 @@ func toAdminUser(u *models.User) map[string]any {
 	return map[string]any{
 		"id":           u.ID,
 		"email":        u.Email,
-		"role":         u.Role,
 		"display_name": u.DisplayName,
 		"timezone":     u.Timezone,
 		"locale":       u.Locale,

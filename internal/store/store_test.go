@@ -46,9 +46,6 @@ func TestUserCreateGetByEmail(t *testing.T) {
 	if got.Email != "user@example.com" {
 		t.Fatalf("email mismatch: %q", got.Email)
 	}
-	if got.Role != models.RoleUser {
-		t.Fatalf("default role should be user, got %q", got.Role)
-	}
 }
 
 func TestUserUniqueEmailConflict(t *testing.T) {

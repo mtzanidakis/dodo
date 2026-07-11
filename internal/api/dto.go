@@ -9,7 +9,6 @@ import (
 type userDTO struct {
 	ID                  string  `json:"id"`
 	Email               string  `json:"email"`
-	Role                string  `json:"role"`
 	DisplayName         string  `json:"display_name"`
 	Timezone            string  `json:"timezone"`
 	Locale              string  `json:"locale"`
@@ -25,7 +24,6 @@ func toUserDTO(u *models.User) userDTO {
 	return userDTO{
 		ID:                 u.ID,
 		Email:              u.Email,
-		Role:               string(u.Role),
 		DisplayName:        u.DisplayName,
 		Timezone:           u.Timezone,
 		Locale:             string(u.Locale),

@@ -103,17 +103,6 @@ func (m *Middleware) RequireUser(next http.Handler) http.Handler {
 	})
 }
 
-func (m *Middleware) RequireAdmin(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		u := UserFromContext(r.Context())
-		if u == nil || u.Role != models.RoleAdmin {
-			handleUnauthorized(w, r)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
 func handleUnauthorized(w http.ResponseWriter, r *http.Request) {
 	if strings.HasPrefix(r.URL.Path, "/api/") || r.Header.Get("Accept") == "application/json" {
 		w.Header().Set("Content-Type", "application/json")

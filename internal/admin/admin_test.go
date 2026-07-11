@@ -44,18 +44,20 @@ func runAdmin(t *testing.T, dbPath string, args []string) (int, string, string) 
 	return code, string(outBytes), string(errBytes)
 }
 
-func TestAdminBootstrapFirstUser(t *testing.T) {
+func TestAdminUserCreate(t *testing.T) {
 	code, out, _ := runAdmin(t, newDB(t), []string{"user", "create", "--email", "admin@example.com", "--password", "pass12345"})
 	if code != 0 {
 		t.Fatalf("exit %d", code)
 	}
-	bs := out
 	var u map[string]any
-	if err := json.Unmarshal([]byte(bs), &u); err != nil {
-		t.Fatalf("decode (out=%q): %v", bs, err)
+	if err := json.Unmarshal([]byte(out), &u); err != nil {
+		t.Fatalf("decode (out=%q): %v", out, err)
 	}
-	if u["role"] != "admin" {
-		t.Fatalf("first user should default to admin, got %v", u["role"])
+	if u["email"] != "admin@example.com" {
+		t.Fatalf("created user email mismatch: %v", u["email"])
+	}
+	if _, hasRole := u["role"]; hasRole {
+		t.Fatalf("user output should not contain a role field")
 	}
 }
 

@@ -46,7 +46,7 @@ Also `go vet ./...` and `gofmt -l .` (must be empty).
 - Datetimes: stored in the DB as `TEXT` RFC3339 **UTC**. Convert to/from the user's timezone only at the API/render edge.
 - IDs: UUIDv7 strings (`uuid.NewV7()`), `TEXT PRIMARY KEY`.
 - Passwords: minimum 8 characters, enforced everywhere.
-- Per-user data scoping: every store query touching `tasks`, `task_completions`, `api_tokens` (and the `me/*` routes) takes a `userID` and constrains `WHERE user_id = ?`. Body `user_id` fields are ignored. Cross-user `GET/PATCH/DELETE /tasks/{id}` returns **404** (not 403) to avoid leaking existence. Admin role never widens task visibility over the HTTP API.
+- Per-user data scoping: every store query touching `tasks`, `task_completions`, `api_tokens` (and the `me/*` routes) takes a `userID` and constrains `WHERE user_id = ?`. Body `user_id` fields are ignored. Cross-user `GET/PATCH/DELETE /tasks/{id}` returns **404** (not 403) to avoid leaking existence. All users are equal; there are no roles.
 - No code comments unless genuinely needed. No emojis in code or UI.
 
 ## Server env vars (`dodo` binary only)
@@ -82,7 +82,7 @@ mise install
 mise run build-all
 export DODO_ENCRYPTION_KEY=$(openssl rand -base64 32)
 export DODO_DATABASE_PATH=/tmp/dodo.sqlite
-./dodo admin user create --email admin@example.com --password supersecret --role admin
+./dodo admin user create --email admin@example.com --password supersecret
 ./dodo serve &            # listens on :8080
 TOK=$(./dodo admin token create --email admin@example.com --name agent | jq -r .token)
 ./dodo-cli --url http://localhost:8080 --token "$TOK" init --url http://localhost:8080 --token "$TOK"

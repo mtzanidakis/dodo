@@ -26,7 +26,7 @@ docker run -d --name dodo \
   ghcr.io/mtzanidakis/dodo
 
 # bootstrap the first admin (inside the container)
-docker exec -it dodo dodo admin user create --email admin@example.com --password supersecret --role admin
+docker exec -it dodo dodo admin user create --email admin@example.com --password supersecret
 TOK=$(docker exec -it dodo dodo admin token create --email admin@example.com --name agent | jq -r .token)
 
 dodo-cli init --url http://localhost:8080 --token "$TOK"
@@ -41,7 +41,7 @@ mise install
 mise run build-all
 export DODO_ENCRYPTION_KEY=$(openssl rand -base64 32)
 export DODO_DATABASE_PATH=/tmp/dodo.sqlite
-./dodo admin user create --email admin@example.com --password supersecret --role admin
+./dodo admin user create --email admin@example.com --password supersecret
 ./dodo serve &
 TOK=$(./dodo admin token create --email admin@example.com --name agent | jq -r .token)
 ./dodo-cli --url http://localhost:8080 --token "$TOK" tasks create --title "Pay bill" --due 2026-07-11T17:00:00Z --priority high
