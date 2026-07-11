@@ -13,6 +13,7 @@ import (
 	"github.com/mtzanidakis/dodo/internal/auth"
 	"github.com/mtzanidakis/dodo/internal/db"
 	"github.com/mtzanidakis/dodo/internal/models"
+	"github.com/mtzanidakis/dodo/internal/recurrence"
 	"github.com/mtzanidakis/dodo/internal/store"
 	"github.com/mtzanidakis/dodo/internal/ws"
 )
@@ -120,6 +121,50 @@ func TestCompletedThisWeekCombinesAxes(t *testing.T) {
 	}
 	if strings.Contains(body, "StillPending") {
 		t.Fatalf("completed+week should not show a pending task")
+	}
+}
+
+func TestCompletedShowsEachRecurringOccurrence(t *testing.T) {
+	mux, st, u, session := newWebEnv(t)
+	ctx := context.Background()
+	loc, _ := time.LoadLocation(u.Timezone)
+	freq := models.FreqDaily
+	start := time.Now().In(loc).AddDate(0, 0, -3)
+	task := &models.Task{
+		UserID: u.ID, Title: "PayRent", Priority: models.PriorityHigh,
+		DueAt: start.UTC(), RecurrenceFreq: &freq, RecurrenceInterval: 1, Kind: models.KindRecurring,
+	}
+	if err := st.Tasks.Create(ctx, task); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	advance := func(tk *models.Task, _ time.Time) (*models.TaskCompletion, bool, error) {
+		next := recurrence.NextOccurrence(recurrence.Rule{Freq: *tk.RecurrenceFreq, Interval: tk.RecurrenceInterval}, tk.DueAt, tk.DueAt, loc)
+		tk.DueAt = next
+		tk.LastNotifiedAt = nil
+		return nil, false, nil
+	}
+	for i := 0; i < 3; i++ {
+		if _, _, _, err := st.Tasks.Complete(ctx, u.ID, task.ID, time.Now().UTC().Add(time.Duration(i)*time.Minute), advance); err != nil {
+			t.Fatalf("complete %d: %v", i, err)
+		}
+	}
+
+	// Completed view: every occurrence shows, no phantom task row.
+	req := httptest.NewRequest(http.MethodGet, "/?filter=completed&period=all", nil)
+	withSession(req, session)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if got := strings.Count(rec.Body.String(), ">PayRent<"); got != 3 {
+		t.Fatalf("completed view should list 3 occurrences, got %d", got)
+	}
+
+	// Pending view: the series is still open, shown once.
+	req = httptest.NewRequest(http.MethodGet, "/?filter=pending&period=all", nil)
+	withSession(req, session)
+	rec = httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if got := strings.Count(rec.Body.String(), ">PayRent<"); got != 1 {
+		t.Fatalf("pending view should show the open series once, got %d", got)
 	}
 }
 

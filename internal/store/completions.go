@@ -30,6 +30,25 @@ func scanCompletion(row interface {
 	return nil
 }
 
+// TaskIDs returns the set of task ids that have at least one recorded
+// completion, i.e. tasks that are (or were) recurring.
+func (s *Completions) TaskIDs(ctx context.Context, userID string) (map[string]bool, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT DISTINCT task_id FROM task_completions WHERE user_id = ?`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	out := make(map[string]bool)
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out[id] = true
+	}
+	return out, rows.Err()
+}
+
 func (s *Completions) List(ctx context.Context, userID string, from, to *time.Time) ([]*models.TaskCompletion, error) {
 	var (
 		conds []string

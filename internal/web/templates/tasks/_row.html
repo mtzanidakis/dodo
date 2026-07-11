@@ -5,6 +5,7 @@
     <span class="task-title">{{.Task.Title}}</span>
     <span class="task-meta">
       <span>{{.Task.DueLocal}}</span>
+      {{if .Task.CompletedLocal}}<span class="badge">✓ {{.Task.CompletedLocal}}</span>{{end}}
       {{if .Task.Recurring}}<span class="badge recurring">↻ {{.Task.RecurrenceLabel}}</span>{{end}}
       {{if .Task.Snoozed}}<span class="badge">💤 {{.Task.SnoozedUntil}}</span>{{end}}
     </span>
@@ -26,10 +27,12 @@
     </details>
     <a class="btn btn-sm btn-ghost" href="/ui/tasks/{{.Task.ID}}/edit">{{t .Lang "action.edit"}}</a>
     {{end}}
+    {{if or (not .Task.Completed) .Task.Deletable}}
     <button class="btn btn-sm btn-danger"
             hx-post="/ui/tasks/{{.Task.ID}}/delete"
             hx-target="#task-{{.Task.ID}}" hx-swap="delete"
             hx-confirm="{{t .Lang "confirm.delete"}}">✕</button>
+    {{end}}
   </div>
 </div>
 {{end}}
