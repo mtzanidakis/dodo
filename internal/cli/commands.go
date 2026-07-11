@@ -107,10 +107,10 @@ func (a *App) cmdTasks(args []string) int {
 func (a *App) tasksList(args []string) int {
 	fs := flag.NewFlagSet("tasks list", flag.ContinueOnError)
 	filter := fs.String("filter", "", "")
+	period := fs.String("period", "", "")
 	priority := fs.String("priority", "", "")
 	from := fs.String("from", "", "")
 	to := fs.String("to", "", "")
-	view := fs.String("view", "", "")
 	limit := fs.String("limit", "", "")
 	cursor := fs.String("cursor", "", "")
 	_ = fs.Parse(args)
@@ -122,10 +122,10 @@ func (a *App) tasksList(args []string) int {
 		}
 	}
 	add("filter", *filter)
+	add("period", *period)
 	add("priority", *priority)
 	add("from", *from)
 	add("to", *to)
-	add("view", *view)
 	add("limit", *limit)
 	add("cursor", *cursor)
 	path := "/api/v1/tasks"
