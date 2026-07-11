@@ -1,0 +1,28 @@
+services:
+  dodo:
+    container_name: dodo
+    image: ghcr.io/mtzanidakis/dodo:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - dodo-data:/data
+    environment:
+      - DODO_ENCRYPTION_KEY=${DODO_ENCRYPTION_KEY}
+      - DODO_LISTEN=:8080
+      - DODO_DATABASE_PATH=/data/dodo.sqlite
+      - DODO_DEFAULT_TIMEZONE=${DODO_DEFAULT_TIMEZONE:-Europe/Athens}
+      - DODO_DEFAULT_LOCALE=${DODO_DEFAULT_LOCALE:-en}
+      - DODO_LOG_LEVEL=${DODO_LOG_LEVEL:-info}
+      - TZ=${TZ:-UTC}
+    networks:
+      - dodo-net
+    restart: unless-stopped
+
+volumes:
+  dodo-data:
+    name: dodo-data
+
+networks:
+  dodo-net:
+    name: dodo-net
+    driver: bridge

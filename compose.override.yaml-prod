@@ -1,0 +1,26 @@
+services:
+  dodo-tsrp:
+    container_name: dodo-tsrp
+    image: ghcr.io/mtzanidakis/tsrp
+    restart: always
+    environment:
+      - BACKEND=http://dodo:8080
+      - HOSTNAME=${HOSTNAME}
+      - TS_AUTHKEY=${TS_AUTHKEY}
+    volumes:
+      - ./tsrp-state:/var/lib/tsrp
+
+  dodo:
+    networks:
+      - default            # join tsrp on the default network
+    ports: !reset          # not publicly exposed; reached over Tailscale via tsrp
+    volumes:
+      - ./dumps:/dumps
+    labels:
+      # Consumed by an ofelia scheduler (github.com/mcuadros/ofelia); writes a
+      # fresh backup atomically so /dumps/dodo.sqlite is always a valid copy.
+      ofelia.enabled: "true"
+      ofelia.job-exec.dodo-backup.schedule: "@hourly"
+      ofelia.job-exec.dodo-backup.command: "sh -c 'rm -f /dumps/dodo.new.sqlite && dodo backup -dump /dumps/dodo.new.sqlite && mv -f /dumps/dodo.new.sqlite /dumps/dodo.sqlite'"
+
+# vi: ft=yaml

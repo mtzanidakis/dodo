@@ -9,3 +9,9 @@
 *.db
 *.db-*
 node_modules/
+
+# deployment (compose)
+/.env
+/compose.override.yaml
+/tsrp-state/
+/dumps/
