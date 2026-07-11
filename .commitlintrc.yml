@@ -18,6 +18,7 @@ rules:
     - 2
     - always
     - - db
+      - store
       - auth
       - api
       - recurrence
