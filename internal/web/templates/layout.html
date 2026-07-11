@@ -15,11 +15,13 @@
 <header class="topbar">
   <a class="brand" href="/"><span class="dot"></span>dodo</a>
   <nav>
-    <a href="/" class="{{if eq .Nav "tasks"}}active{{end}}">{{t .Lang "nav.tasks"}}</a>
-    <form method="POST" action="/ui/locale" class="segmented lang-switch">
+    <form method="POST" action="/ui/locale" class="lang-switch">
       <input type="hidden" name="_csrf" value="{{.CSRF}}">
-      <button type="submit" name="locale" value="en" class="{{if eq (printf "%s" .User.Locale) "en"}}active{{end}}">EN</button>
-      <button type="submit" name="locale" value="el" class="{{if eq (printf "%s" .User.Locale) "el"}}active{{end}}">ΕΛ</button>
+      {{if eq (printf "%s" .User.Locale) "el"}}
+      <button type="submit" name="locale" value="en" class="btn btn-sm" title="{{t .Lang "field.locale"}}">ΕΛ</button>
+      {{else}}
+      <button type="submit" name="locale" value="el" class="btn btn-sm" title="{{t .Lang "field.locale"}}">EN</button>
+      {{end}}
     </form>
     <details class="dropdown theme-menu">
       <summary title="{{t .Lang "field.theme"}}">
