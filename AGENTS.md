@@ -82,7 +82,7 @@ mise install
 mise run build-all
 export DODO_ENCRYPTION_KEY=$(openssl rand -base64 32)
 export DODO_DATABASE_PATH=/tmp/dodo.sqlite
-./dodo admin user create --email admin@example.com --password supersecret
+printf 'supersecret\n' | ./dodo admin user create --email admin@example.com  # password via stdin, not argv
 ./dodo serve &            # listens on :8080
 TOK=$(./dodo admin token create --email admin@example.com --name agent | jq -r .token)
 ./dodo-cli --url http://localhost:8080 --token "$TOK" init --url http://localhost:8080 --token "$TOK"

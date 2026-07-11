@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
@@ -11,6 +12,8 @@ import (
 	"os"
 	"strings"
 
+	"golang.org/x/term"
+
 	"github.com/mtzanidakis/dodo/internal/auth"
 	"github.com/mtzanidakis/dodo/internal/config"
 	"github.com/mtzanidakis/dodo/internal/db"
@@ -18,6 +21,43 @@ import (
 	"github.com/mtzanidakis/dodo/internal/models"
 	"github.com/mtzanidakis/dodo/internal/store"
 )
+
+// readNewPassword reads a password without echoing it to the terminal, so it
+// never lands in argv, `ps` output, or shell history. On an interactive TTY it
+// prompts (and, when confirm is set, asks a second time and requires a match).
+// When stdin is not a terminal it reads a single line, so the password can be
+// piped in for automation, e.g. `printf 'secret\n' | dodo admin user create …`.
+func readNewPassword(confirm bool) (string, error) {
+	fd := int(os.Stdin.Fd())
+	if term.IsTerminal(fd) {
+		fmt.Fprint(os.Stderr, "Password: ")
+		p1, err := term.ReadPassword(fd)
+		fmt.Fprintln(os.Stderr)
+		if err != nil {
+			return "", err
+		}
+		if confirm {
+			fmt.Fprint(os.Stderr, "Confirm password: ")
+			p2, err := term.ReadPassword(fd)
+			fmt.Fprintln(os.Stderr)
+			if err != nil {
+				return "", err
+			}
+			if string(p1) != string(p2) {
+				return "", errors.New("passwords do not match")
+			}
+		}
+		return string(p1), nil
+	}
+	sc := bufio.NewScanner(os.Stdin)
+	if sc.Scan() {
+		return strings.TrimRight(sc.Text(), "\r\n"), nil
+	}
+	if err := sc.Err(); err != nil {
+		return "", err
+	}
+	return "", nil
+}
 
 var (
 	version = "dev"
@@ -55,12 +95,12 @@ func usage() {
 	fmt.Fprint(os.Stderr, `dodo admin - direct DB admin tool
 
 Usage:
-  dodo admin user create      --email --password [--display-name]
+  dodo admin user create      --email [--display-name]   (prompts for password)
   dodo admin user list
   dodo admin user get         --id | --email
   dodo admin user update      --email [--display-name] [--active]
   dodo admin user delete      --email
-  dodo admin user reset-password --email --password
+  dodo admin user reset-password --email               (prompts for password)
   dodo admin token create     --email --name   (prints full token once)
   dodo admin token list       --email
   dodo admin token revoke     --id | --prefix
@@ -167,15 +207,19 @@ func runUser(args []string) int {
 func userCreate(args []string) int {
 	fs := flag.NewFlagSet("user create", flag.ExitOnError)
 	email := fs.String("email", "", "email")
-	password := fs.String("password", "", "password")
 	displayName := fs.String("display-name", "", "display name")
 	pretty := fs.Bool("pretty", false, "human table output")
 	_ = fs.Parse(args)
-	if *email == "" || *password == "" {
-		fmt.Fprintln(os.Stderr, "error: --email and --password required")
+	if *email == "" {
+		fmt.Fprintln(os.Stderr, "error: --email required")
 		return 2
 	}
-	if len(*password) < 8 {
+	password, err := readNewPassword(true)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		return 1
+	}
+	if len(password) < 8 {
 		fmt.Fprintln(os.Stderr, "error: password must be at least 8 characters")
 		return 1
 	}
@@ -186,7 +230,7 @@ func userCreate(args []string) int {
 	defer done()
 	ctx := context.Background()
 
-	hash, err := auth.HashPassword(*password)
+	hash, err := auth.HashPassword(password)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		return 1
@@ -342,13 +386,17 @@ func userDelete(args []string) int {
 func userResetPassword(args []string) int {
 	fs := flag.NewFlagSet("user reset-password", flag.ExitOnError)
 	email := fs.String("email", "", "email")
-	password := fs.String("password", "", "new password")
 	_ = fs.Parse(args)
-	if *email == "" || *password == "" {
-		fmt.Fprintln(os.Stderr, "error: --email and --password required")
+	if *email == "" {
+		fmt.Fprintln(os.Stderr, "error: --email required")
 		return 2
 	}
-	if len(*password) < 8 {
+	password, err := readNewPassword(true)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		return 1
+	}
+	if len(password) < 8 {
 		fmt.Fprintln(os.Stderr, "error: password must be at least 8 characters")
 		return 1
 	}
@@ -363,7 +411,7 @@ func userResetPassword(args []string) int {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		return 4
 	}
-	hash, err := auth.HashPassword(*password)
+	hash, err := auth.HashPassword(password)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		return 1
@@ -517,5 +565,4 @@ func toAdminUser(u *models.User) map[string]any {
 	}
 }
 
-var _ = errors.New
 var _ io.Reader = strings.NewReader("")
