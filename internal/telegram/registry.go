@@ -14,6 +14,7 @@ import (
 type Registry struct {
 	store   *store.Store
 	crypto  *crypto.Crypto
+	apiBase string
 	mu      sync.RWMutex
 	clients map[string]*Client
 }
@@ -21,6 +22,8 @@ type Registry struct {
 func NewRegistry(st *store.Store, c *crypto.Crypto) *Registry {
 	return &Registry{store: st, crypto: c, clients: make(map[string]*Client)}
 }
+
+func (r *Registry) WithAPIBase(base string) *Registry { r.apiBase = base; return r }
 
 func (r *Registry) GetOrCreate(ctx context.Context, userID string) (*Client, error) {
 	r.mu.RLock()
@@ -39,6 +42,9 @@ func (r *Registry) GetOrCreate(ctx context.Context, userID string) (*Client, err
 		return nil, err
 	}
 	c := New(token)
+	if r.apiBase != "" {
+		c = c.WithAPIBase(r.apiBase)
+	}
 	r.mu.Lock()
 	r.clients[userID] = c
 	r.mu.Unlock()
@@ -60,6 +66,7 @@ type Pollers struct {
 	onUpdate func(userID string, u Update)
 	mu       sync.Mutex
 	stopped  map[string]chan struct{}
+	rootCtx  context.Context
 	apiBase  string
 }
 
@@ -72,12 +79,17 @@ func NewPollers(reg *Registry, st *store.Store, logger *slog.Logger, hub pub) *P
 		registry: reg, store: st, logger: logger, hub: hub,
 		now:     time.Now,
 		stopped: make(map[string]chan struct{}),
+		rootCtx: context.Background(),
 	}
 }
 
 func (p *Pollers) WithAPIBase(base string) *Pollers { p.apiBase = base; return p }
 
-func (p *Pollers) StartForUser(ctx context.Context, userID string) error {
+// StartForUser launches a poller goroutine. The goroutine's lifetime is bound
+// to the server-wide root context (not the caller's ctx, which for an API
+// request is cancelled as soon as the response is sent); the returned stop
+// channel and StopForUser control per-user shutdown.
+func (p *Pollers) StartForUser(_ context.Context, userID string) error {
 	p.mu.Lock()
 	if _, running := p.stopped[userID]; running {
 		p.mu.Unlock()
@@ -85,9 +97,10 @@ func (p *Pollers) StartForUser(ctx context.Context, userID string) error {
 	}
 	stop := make(chan struct{})
 	p.stopped[userID] = stop
+	root := p.rootCtx
 	p.mu.Unlock()
 
-	go p.runLoop(ctx, userID, stop)
+	go p.runLoop(root, userID, stop)
 	return nil
 }
 
@@ -106,6 +119,9 @@ func (p *Pollers) StopForUser(userID string) error {
 }
 
 func (p *Pollers) StartAll(ctx context.Context) error {
+	p.mu.Lock()
+	p.rootCtx = ctx
+	p.mu.Unlock()
 	users, err := p.store.Users.ListTelegramEnabled(ctx)
 	if err != nil {
 		return err
@@ -145,7 +161,7 @@ func (p *Pollers) runLoop(ctx context.Context, userID string, stop chan struct{}
 			backoff = min(backoff*2, 60*time.Second)
 			continue
 		}
-		updates, err := client.GetUpdates(ctx, offset, 50)
+		updates, err := client.GetUpdates(ctx, offset, LongPollSeconds)
 		if err != nil {
 			p.logger.Warn("telegram getUpdates error", "user_id", userID, "error", err)
 			sleepCtx(ctx, stop, backoff)
