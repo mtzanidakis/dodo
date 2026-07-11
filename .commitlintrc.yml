@@ -1,8 +1,10 @@
-type: object
-properties:
-  type:
-    enum:
-      - feat
+extends:
+  - "@commitlint/config-conventional"
+rules:
+  type-enum:
+    - 2
+    - always
+    - - feat
       - fix
       - refactor
       - test
@@ -12,9 +14,10 @@ properties:
       - build
       - perf
       - style
-  scope:
-    enum:
-      - db
+  scope-enum:
+    - 2
+    - always
+    - - db
       - auth
       - api
       - recurrence
@@ -30,16 +33,15 @@ properties:
       - ci
       - crypto
       - config
-required:
-  - type
-  - subject
-rules:
-  subject:
-    max-length: 72
-    case: lower
-    ends-with-dot: false
-  body:
-    max-line-length: 72
-  footer:
-    breaking:
-      required: true
+  subject-full-stop:
+    - 2
+    - never
+    - "."
+  header-max-length:
+    - 2
+    - always
+    - 100
+  body-max-line-length:
+    - 2
+    - always
+    - 100
