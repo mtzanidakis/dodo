@@ -2,7 +2,6 @@ package web
 
 import (
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -11,7 +10,11 @@ import (
 	"github.com/mtzanidakis/dodo/internal/i18n"
 	"github.com/mtzanidakis/dodo/internal/models"
 	"github.com/mtzanidakis/dodo/internal/recurrence"
+	"github.com/mtzanidakis/dodo/internal/store"
 )
+
+// pageSize is the number of timeline rows fetched per home-list page.
+const pageSize = 25
 
 type taskView struct {
 	ID              string
@@ -57,13 +60,16 @@ func freqOptions(lang, selected string) []freqOption {
 }
 
 func recurrenceLabel(t *models.Task, lang string) string {
-	if t.RecurrenceFreq == nil {
+	return recurrenceLabelFreq(t.RecurrenceFreq, t.RecurrenceInterval, lang)
+}
+
+func recurrenceLabelFreq(freq *models.RecurrenceFreq, interval int, lang string) string {
+	if freq == nil {
 		return ""
 	}
-	key := "recurrence." + string(*t.RecurrenceFreq)
-	label := i18n.T(key, lang)
-	if t.RecurrenceInterval > 1 {
-		return label + " ×" + strconv.Itoa(t.RecurrenceInterval)
+	label := i18n.T("recurrence."+string(*freq), lang)
+	if interval > 1 {
+		return label + " ×" + strconv.Itoa(interval)
 	}
 	return label
 }
@@ -106,155 +112,72 @@ func dayLabel(local, now time.Time, lang string) string {
 	}
 }
 
-func (h *Handler) buildGroups(tasks []*models.Task, loc *time.Location, lang string, now time.Time) []dayGroup {
-	sort.SliceStable(tasks, func(i, j int) bool { return tasks[i].DueAt.Before(tasks[j].DueAt) })
+// timelinePage fetches one page of the unified task timeline for the given
+// filter/period and turns it into day-groups plus the next-page cursor ("" when
+// there are no more rows).
+func (h *Handler) timelinePage(r *http.Request, u *models.User, loc *time.Location, now time.Time, filter, period, cursor string) ([]dayGroup, string) {
+	from, to := models.PeriodBounds(period, now)
+	items, next, _ := h.deps.Store.Timeline(r.Context(), u.ID, filter, from, to, pageSize, cursor)
+	return h.buildTimelineGroups(items, filter, loc, string(u.Locale), now), next
+}
+
+// buildTimelineGroups groups a timeline page by day — completion day for the
+// completed history, due day otherwise.
+func (h *Handler) buildTimelineGroups(items []*store.TimelineItem, filter string, loc *time.Location, lang string, now time.Time) []dayGroup {
 	var groups []dayGroup
-	var curKey string
-	for _, t := range tasks {
-		local := t.DueAt.In(loc)
+	curKey := ""
+	for _, it := range items {
+		local := groupTime(it, filter).In(loc)
 		key := local.Format("2006-01-02")
 		if key != curKey || len(groups) == 0 {
 			groups = append(groups, dayGroup{Label: dayLabel(local, now, lang)})
 			curKey = key
 		}
 		g := &groups[len(groups)-1]
-		g.Tasks = append(g.Tasks, h.toTaskView(t, loc, lang, now))
+		g.Tasks = append(g.Tasks, timelineView(it, filter, loc, lang, now))
 	}
 	return groups
 }
 
-// buildCompletedGroups renders the completed view as a history of finished
-// occurrences grouped by the day they were completed. Every completed
-// repetition of a recurring task (from task_completions) is listed, plus
-// genuine completed one-off tasks; recurring task rows themselves are excluded
-// so a still-pending or stale series never shows as a phantom completed entry.
-func (h *Handler) buildCompletedGroups(r *http.Request, u *models.User, loc *time.Location, now time.Time, period string) []dayGroup {
-	lang := string(u.Locale)
-	from, to := models.PeriodBounds(period, now)
-
-	type item struct {
-		view        taskView
-		completedAt time.Time
+func groupTime(it *store.TimelineItem, filter string) time.Time {
+	if filter == "completed" && it.CompletedAt != nil {
+		return *it.CompletedAt
 	}
-	var items []item
-
-	compls, _, _ := h.deps.Store.Completions.List(r.Context(), u.ID, from, to, 200, "")
-	for _, c := range compls {
-		items = append(items, item{
-			completedAt: c.CompletedAt,
-			view: taskView{
-				ID:             c.ID,
-				Title:          c.Title,
-				Priority:       c.Priority,
-				DueLocal:       c.DueAt.In(loc).Format("Mon 2 Jan 15:04"),
-				CompletedLocal: c.CompletedAt.In(loc).Format("15:04"),
-				Completed:      true,
-			},
-		})
-	}
-
-	recurring, _ := h.deps.Store.Completions.TaskIDs(r.Context(), u.ID)
-	tf := models.TaskFilter{Filter: "completed", Limit: 500}
-	tf.ApplyPeriod(period, now)
-	tasks, _, _ := h.deps.Store.Tasks.List(r.Context(), u.ID, tf)
-	for _, t := range tasks {
-		if t.Recurring() || recurring[t.ID] {
-			continue
-		}
-		completedAt := now
-		if t.CompletedAt != nil {
-			completedAt = *t.CompletedAt
-		}
-		tv := h.toTaskView(t, loc, lang, now)
-		tv.DueLocal = t.DueAt.In(loc).Format("Mon 2 Jan 15:04")
-		tv.CompletedLocal = completedAt.In(loc).Format("15:04")
-		tv.Deletable = true
-		items = append(items, item{view: tv, completedAt: completedAt})
-	}
-
-	sort.SliceStable(items, func(i, j int) bool { return items[i].completedAt.After(items[j].completedAt) })
-
-	var groups []dayGroup
-	curKey := ""
-	for _, it := range items {
-		local := it.completedAt.In(loc)
-		key := local.Format("2006-01-02")
-		if key != curKey || len(groups) == 0 {
-			groups = append(groups, dayGroup{Label: dayLabel(local, now, lang)})
-			curKey = key
-		}
-		g := &groups[len(groups)-1]
-		g.Tasks = append(g.Tasks, it.view)
-	}
-	return groups
+	return it.DueAt
 }
 
-// buildAllGroups renders the "all" view as a due-date timeline that mixes
-// pending task rows with completed occurrences (from task_completions) and
-// completed one-off tasks. Recurring task rows that carry a completion are
-// excluded, so a completed recurring series shows as its individual occurrences
-// rather than a single phantom row. A period, if set, windows the due date.
-func (h *Handler) buildAllGroups(r *http.Request, u *models.User, loc *time.Location, now time.Time, period string) []dayGroup {
-	lang := string(u.Locale)
-	from, to := models.PeriodBounds(period, now)
-
-	type item struct {
-		view taskView
-		due  time.Time
+// timelineView renders one timeline row into the shared taskView, matching the
+// per-view formatting the old builders produced.
+func timelineView(it *store.TimelineItem, filter string, loc *time.Location, lang string, now time.Time) taskView {
+	local := it.DueAt.In(loc)
+	tv := taskView{
+		ID:           it.ID,
+		Title:        it.Title,
+		Description:  it.Description,
+		Priority:     it.Priority,
+		DueAt:        it.DueAt.UTC().Format(time.RFC3339),
+		DueLocal:     local.Format("15:04"),
+		DueDateLocal: local.Format("Mon 2 Jan"),
 	}
-	var items []item
-
-	pending, _, _ := h.deps.Store.Tasks.List(r.Context(), u.ID, models.TaskFilter{Filter: "pending", From: from, To: to, Limit: 500})
-	for _, t := range pending {
-		items = append(items, item{view: h.toTaskView(t, loc, lang, now), due: t.DueAt})
-	}
-
-	// Filter completed occurrences by their due date in SQL (ListByDue) rather
-	// than loading every completion and windowing in Go.
-	compls, _ := h.deps.Store.Completions.ListByDue(r.Context(), u.ID, from, to)
-	for _, c := range compls {
-		items = append(items, item{
-			due: c.DueAt,
-			view: taskView{
-				ID:             c.ID,
-				Title:          c.Title,
-				Priority:       c.Priority,
-				DueLocal:       c.DueAt.In(loc).Format("15:04"),
-				CompletedLocal: c.CompletedAt.In(loc).Format("15:04"),
-				Completed:      true,
-			},
-		})
-	}
-
-	recurring, _ := h.deps.Store.Completions.TaskIDs(r.Context(), u.ID)
-	completed, _, _ := h.deps.Store.Tasks.List(r.Context(), u.ID, models.TaskFilter{Filter: "completed", From: from, To: to, Limit: 500})
-	for _, t := range completed {
-		if t.Recurring() || recurring[t.ID] {
-			continue
+	switch it.Kind {
+	case store.TimelinePending:
+		tv.Recurring = it.RecurrenceFreq != nil
+		tv.RecurrenceLabel = recurrenceLabelFreq(it.RecurrenceFreq, it.RecurrenceInterval, lang)
+		if it.SnoozedUntil != nil && it.SnoozedUntil.After(now) {
+			tv.Snoozed = true
+			tv.SnoozedUntil = it.SnoozedUntil.In(loc).Format("Mon 2 Jan 15:04")
 		}
-		tv := h.toTaskView(t, loc, lang, now)
-		if t.CompletedAt != nil {
-			tv.CompletedLocal = t.CompletedAt.In(loc).Format("15:04")
+	case store.TimelineOccurrence, store.TimelineCompleted:
+		tv.Completed = true
+		tv.Deletable = it.Kind == store.TimelineCompleted
+		if it.CompletedAt != nil {
+			tv.CompletedLocal = it.CompletedAt.In(loc).Format("15:04")
 		}
-		tv.Deletable = true
-		items = append(items, item{view: tv, due: t.DueAt})
-	}
-
-	sort.SliceStable(items, func(i, j int) bool { return items[i].due.Before(items[j].due) })
-
-	var groups []dayGroup
-	curKey := ""
-	for _, it := range items {
-		local := it.due.In(loc)
-		key := local.Format("2006-01-02")
-		if key != curKey || len(groups) == 0 {
-			groups = append(groups, dayGroup{Label: dayLabel(local, now, lang)})
-			curKey = key
+		if filter == "completed" {
+			tv.DueLocal = local.Format("Mon 2 Jan 15:04")
 		}
-		g := &groups[len(groups)-1]
-		g.Tasks = append(g.Tasks, it.view)
 	}
-	return groups
+	return tv
 }
 
 func (h *Handler) handleHome(w http.ResponseWriter, r *http.Request) {
@@ -283,18 +206,32 @@ func (h *Handler) handleHome(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	switch filter {
-	case "completed":
-		pd.Groups = h.buildCompletedGroups(r, u, loc, now, period)
-	case "all":
-		pd.Groups = h.buildAllGroups(r, u, loc, now, period)
-	default:
-		tf := models.TaskFilter{Filter: filter, Limit: 200}
-		tf.ApplyPeriod(period, now)
-		tasks, _, _ := h.deps.Store.Tasks.List(r.Context(), u.ID, tf)
-		pd.Groups = h.buildGroups(tasks, loc, string(u.Locale), now)
-	}
+	pd.Groups, pd.NextCursor = h.timelinePage(r, u, loc, now, filter, period, "")
 	h.render(w, "tasks/index.html", pd)
+}
+
+// handleTasksPage returns the next page of the task timeline as an htmx
+// fragment (day-groups plus a fresh load-more control), appended in place of
+// the load-more button that triggered it.
+func (h *Handler) handleTasksPage(w http.ResponseWriter, r *http.Request) {
+	u := auth.UserFromContext(r.Context())
+	loc := loadLoc(u.Timezone)
+	now := time.Now().In(loc)
+	filter := r.URL.Query().Get("filter")
+	if filter != "completed" && filter != "all" {
+		filter = "pending"
+	}
+	period := r.URL.Query().Get("period")
+	if period == "" {
+		period = "all"
+	}
+	pd := h.base(w, r, u, "", "tasks")
+	pd.Filter = filter
+	pd.Period = period
+	pd.Groups, pd.NextCursor = h.timelinePage(r, u, loc, now, filter, period, r.URL.Query().Get("cursor"))
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	tmpl := taskListTemplate()
+	_ = tmpl.ExecuteTemplate(w, "tasklist", pd)
 }
 
 // ---- calendar -------------------------------------------------------------

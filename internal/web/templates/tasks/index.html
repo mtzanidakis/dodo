@@ -66,16 +66,7 @@
     {{template "calendar" .}}
   {{else}}
   <div id="task-list">
-    {{if .Groups}}
-      {{range .Groups}}
-      <div class="day-group">
-        <div class="day-heading">{{.Label}}</div>
-        {{range .Tasks}}{{template "row" (dict "Task" . "Lang" $.Lang "CSRF" $.CSRF)}}{{end}}
-      </div>
-      {{end}}
-    {{else}}
-      <div class="empty"><div class="big">🎉</div>{{t .Lang "tasks.empty"}}</div>
-    {{end}}
+    {{if .Groups}}{{template "tasklist" .}}{{else}}<div class="empty"><div class="big">🎉</div>{{t .Lang "tasks.empty"}}</div>{{end}}
   </div>
   {{end}}
 </div>

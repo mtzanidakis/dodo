@@ -12,6 +12,7 @@
   "action.copy": "Αντιγραφή",
   "action.revoke": "Ανάκληση",
   "action.new_task": "Νέα εργασία",
+  "action.load_more": "Φόρτωση περισσότερων",
   "action.save": "Αποθήκευση",
   "action.cancel": "Άκυρο",
   "confirm.delete": "Διαγραφή αυτής της εργασίας;",

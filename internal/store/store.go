@@ -18,6 +18,8 @@ type Store struct {
 	Tasks       *Tasks
 	Completions *Completions
 	Audit       *Audit
+
+	db *sql.DB
 }
 
 func New(db *sql.DB) *Store {
@@ -28,6 +30,7 @@ func New(db *sql.DB) *Store {
 		Tasks:       &Tasks{db: db},
 		Completions: &Completions{db: db},
 		Audit:       &Audit{db: db},
+		db:          db,
 	}
 }
 

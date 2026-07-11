@@ -53,8 +53,15 @@ var baseTemplate = template.Must(template.New("").Funcs(funcMap).ParseFS(templat
 
 func pageTemplate(name string) *template.Template {
 	clone := template.Must(baseTemplate.Clone())
-	clone = template.Must(clone.ParseFS(templatesFS, "templates/tasks/_row.html"))
+	clone = template.Must(clone.ParseFS(templatesFS, "templates/tasks/_row.html", "templates/tasks/_list.html"))
 	return template.Must(clone.ParseFS(templatesFS, "templates/"+name))
+}
+
+// taskListTemplate renders the "tasklist" partial (day-groups + load-more) on
+// its own, for htmx load-more responses.
+func taskListTemplate() *template.Template {
+	return template.Must(template.New("").Funcs(funcMap).ParseFS(templatesFS,
+		"templates/tasks/_row.html", "templates/tasks/_list.html"))
 }
 
 func fragmentTemplate(name string) *template.Template {
@@ -91,12 +98,13 @@ type pageData struct {
 	Flash        string
 
 	// tasks page
-	View     string
-	Filter   string
-	Period   string
-	Groups   []dayGroup
-	Calendar *calendarView
-	Freqs    []freqOption
+	View       string
+	Filter     string
+	Period     string
+	Groups     []dayGroup
+	NextCursor string
+	Calendar   *calendarView
+	Freqs      []freqOption
 
 	// tokens page
 	Tokens   []tokenView
@@ -196,6 +204,7 @@ func (h *Handler) Mount(mux *http.ServeMux) {
 	mux.Handle("POST /ui/tokens/{id}/delete", post(h.handleRevokeToken))
 
 	mux.Handle("POST /ui/tasks", post(h.handleCreateTask))
+	mux.Handle("GET /ui/tasks/page", sess(h.handleTasksPage))
 	mux.Handle("GET /ui/tasks/{id}/edit", sess(h.handleEditTaskPage))
 	mux.Handle("POST /ui/tasks/{id}", post(h.handleUpdateTask))
 	mux.Handle("POST /ui/tasks/{id}/complete", post(h.handleCompleteTask))

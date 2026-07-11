@@ -18,15 +18,16 @@ const (
 )
 
 type model struct {
-	client *Client
-	items  []taskItem
-	cursor int
-	err    string
-	width  int
-	height int
-	user   string
-	filter string
-	period string
+	client     *Client
+	items      []taskItem
+	cursor     int
+	nextCursor string // next-page cursor from the API; "" when no more rows
+	err        string
+	width      int
+	height     int
+	user       string
+	filter     string
+	period     string
 
 	mode   mode
 	form   taskForm
@@ -45,16 +46,32 @@ func initialModel(c *Client) model {
 func (m model) Init() tea.Cmd { return nil }
 
 func (m *model) reload() {
-	items, err := m.client.ListTasksFilter(m.filter, m.period)
+	items, next, err := m.client.ListTasksPage(m.filter, m.period, "")
 	if err != nil {
 		m.err = err.Error()
 		return
 	}
 	m.err = ""
 	m.items = items
+	m.nextCursor = next
 	if m.cursor >= len(m.items) {
 		m.cursor = 0
 	}
+}
+
+// maybeLoadMore fetches and appends the next page when the selection reaches
+// the last loaded row and more rows are available (infinite-scroll style).
+func (m *model) maybeLoadMore() {
+	if m.nextCursor == "" || m.cursor < len(m.items)-1 {
+		return
+	}
+	items, next, err := m.client.ListTasksPage(m.filter, m.period, m.nextCursor)
+	if err != nil {
+		m.err = err.Error()
+		return
+	}
+	m.items = append(m.items, items...)
+	m.nextCursor = next
 }
 
 func (m *model) selected() (taskItem, bool) {
@@ -101,6 +118,7 @@ func (m model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.cursor < len(m.items)-1 {
 			m.cursor++
 		}
+		m.maybeLoadMore()
 	case "r":
 		m.reload()
 	case "c":
