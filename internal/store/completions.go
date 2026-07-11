@@ -49,6 +49,38 @@ func (s *Completions) TaskIDs(ctx context.Context, userID string) (map[string]bo
 	return out, rows.Err()
 }
 
+// ListByDue returns completions whose occurrence due_at falls in [from, to],
+// used by the calendar to place each finished occurrence on its own due day
+// regardless of when it was actually completed.
+func (s *Completions) ListByDue(ctx context.Context, userID string, from, to *time.Time) ([]*models.TaskCompletion, error) {
+	conds := []string{"user_id = ?"}
+	args := []any{userID}
+	if from != nil {
+		conds = append(conds, "due_at >= ?")
+		args = append(args, formatTime(*from))
+	}
+	if to != nil {
+		conds = append(conds, "due_at <= ?")
+		args = append(args, formatTime(*to))
+	}
+	query := "SELECT " + completionColumns() + " FROM task_completions WHERE " +
+		strings.Join(conds, " AND ") + " ORDER BY due_at ASC"
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	var out []*models.TaskCompletion
+	for rows.Next() {
+		c := &models.TaskCompletion{}
+		if err := scanCompletion(rows, c); err != nil {
+			return nil, err
+		}
+		out = append(out, c)
+	}
+	return out, rows.Err()
+}
+
 func (s *Completions) List(ctx context.Context, userID string, from, to *time.Time) ([]*models.TaskCompletion, error) {
 	var (
 		conds []string
