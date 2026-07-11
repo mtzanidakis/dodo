@@ -9,12 +9,13 @@ import (
 	"github.com/mtzanidakis/dodo/internal/clientconfig"
 )
 
+// normalizeDue converts a user-supplied due string (RFC3339, "2006-01-02T15:04",
+// or free-form like "tomorrow 10:00", "now+30m") into RFC3339 UTC. Anything
+// parseHumanTime cannot understand is passed through unchanged so the server can
+// report a validation error.
 func normalizeDue(s string) string {
 	if s == "" {
 		return ""
-	}
-	if strings.ContainsAny(s, "T-:") || s == "now" {
-		return s
 	}
 	t, err := parseHumanTime(s, time.Local)
 	if err != nil {
@@ -232,7 +233,7 @@ func (a *App) tasksUpdate(args []string) int {
 		body["title"] = *title
 	}
 	if *due != "" {
-		body["due_at"] = *due
+		body["due_at"] = normalizeDue(*due)
 	}
 	if *priority != "" {
 		body["priority"] = *priority
