@@ -169,6 +169,14 @@ func (s *Tasks) List(ctx context.Context, userID string, f models.TaskFilter) ([
 		conds = append(conds, "due_at <= ?")
 		args = append(args, formatTime(*f.To))
 	}
+	if f.CompletedFrom != nil {
+		conds = append(conds, "completed_at >= ?")
+		args = append(args, formatTime(*f.CompletedFrom))
+	}
+	if f.CompletedTo != nil {
+		conds = append(conds, "completed_at <= ?")
+		args = append(args, formatTime(*f.CompletedTo))
+	}
 
 	if limit <= 0 || limit > 200 {
 		limit = 50
