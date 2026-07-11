@@ -1,0 +1,35 @@
+{{define "content"}}
+{{$t := index (index .Groups 0).Tasks 0}}
+<div class="card panel narrow" style="margin:1.5rem auto">
+  <h1>{{t .Lang "action.edit"}}</h1>
+  <form method="POST" action="/ui/tasks/{{$t.ID}}">
+    <input type="hidden" name="_csrf" value="{{.CSRF}}">
+    <label class="field"><span>{{t .Lang "field.title"}}</span>
+      <input name="title" value="{{$t.Title}}" required></label>
+    <div class="form-row">
+      <label class="field"><span>{{t .Lang "field.due_at"}}</span>
+        <input type="datetime-local" name="due_at" value="{{$t.DueLocal}}" required></label>
+      <label class="field"><span>{{t .Lang "field.priority"}}</span>
+        <select name="priority">
+          <option value="low" {{if eq (printf "%s" $t.Priority) "low"}}selected{{end}}>{{t .Lang "priority.low"}}</option>
+          <option value="normal" {{if eq (printf "%s" $t.Priority) "normal"}}selected{{end}}>{{t .Lang "priority.normal"}}</option>
+          <option value="high" {{if eq (printf "%s" $t.Priority) "high"}}selected{{end}}>{{t .Lang "priority.high"}}</option>
+        </select></label>
+    </div>
+    <div class="form-row">
+      <label class="field"><span>{{t .Lang "field.repeat"}}</span>
+        <select name="recurrence_freq">
+          {{range .Freqs}}<option value="{{.Value}}" {{if .Selected}}selected{{end}}>{{.Label}}</option>{{end}}
+        </select></label>
+      <label class="field"><span>{{t .Lang "field.interval"}}</span>
+        <input type="number" name="recurrence_interval" min="1" value="1"></label>
+    </div>
+    <label class="field"><span>{{t .Lang "field.description"}}</span>
+      <textarea name="description" rows="3">{{$t.Description}}</textarea></label>
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit">{{t .Lang "action.save"}}</button>
+      <a class="btn btn-ghost" href="/">{{t .Lang "action.cancel"}}</a>
+    </div>
+  </form>
+</div>
+{{end}}

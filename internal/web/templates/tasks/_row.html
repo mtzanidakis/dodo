@@ -1,0 +1,35 @@
+{{define "row"}}
+<div class="task-row prio-{{.Task.Priority}}{{if .Task.Completed}} done{{end}}" id="task-{{.Task.ID}}">
+  <span class="prio-mark" title="{{.Task.Priority}}">{{priorityIcon .Task.Priority}}</span>
+  <div class="task-main">
+    <span class="task-title">{{.Task.Title}}</span>
+    <span class="task-meta">
+      <span>{{.Task.DueLocal}}</span>
+      {{if .Task.Recurring}}<span class="badge recurring">↻ {{.Task.RecurrenceLabel}}</span>{{end}}
+      {{if .Task.Snoozed}}<span class="badge">💤 {{.Task.SnoozedUntil}}</span>{{end}}
+    </span>
+  </div>
+  <div class="task-actions">
+    {{if not .Task.Completed}}
+    <button class="btn btn-sm btn-primary"
+            hx-post="/ui/tasks/{{.Task.ID}}/complete"
+            hx-target="#task-{{.Task.ID}}" hx-swap="outerHTML">
+      <span class="label">{{t .Lang "action.complete"}}</span><span aria-hidden="true">✓</span>
+    </button>
+    <details class="snooze">
+      <summary class="btn btn-sm">{{t .Lang "action.snooze"}}</summary>
+      <div class="menu card" style="position:absolute;padding:0.3rem;display:flex;flex-direction:column;gap:0.2rem;z-index:5">
+        <button class="btn btn-sm btn-ghost" hx-post="/ui/tasks/{{.Task.ID}}/snooze?preset=1h">+1h</button>
+        <button class="btn btn-sm btn-ghost" hx-post="/ui/tasks/{{.Task.ID}}/snooze?preset=3h">+3h</button>
+        <button class="btn btn-sm btn-ghost" hx-post="/ui/tasks/{{.Task.ID}}/snooze?preset=tomorrow">{{t .Lang "day.tomorrow"}} 09:00</button>
+      </div>
+    </details>
+    <a class="btn btn-sm btn-ghost" href="/ui/tasks/{{.Task.ID}}/edit">{{t .Lang "action.edit"}}</a>
+    {{end}}
+    <button class="btn btn-sm btn-danger"
+            hx-post="/ui/tasks/{{.Task.ID}}/delete"
+            hx-target="#task-{{.Task.ID}}" hx-swap="delete"
+            hx-confirm="{{t .Lang "confirm.delete"}}">✕</button>
+  </div>
+</div>
+{{end}}

@@ -1,27 +1,75 @@
 {{define "content"}}
-<section style="max-width:32rem;margin:2rem auto;padding:1rem">
-  <h1>Account</h1>
-  <form method="POST" action="/account">
-    <p><label>Display name<br><input name="display_name" value="{{.User.DisplayName}}"></label></p>
-    <p><label>Timezone<br><input name="timezone" value="{{.User.Timezone}}"></label></p>
-    <p><label>Locale<br><select name="locale"><option {{if eq .User.Locale "en"}}selected{{end}}>en</option><option {{if eq .User.Locale "el"}}selected{{end}}>el</option></select></label></p>
-    <p><label>Theme<br><select name="theme"><option {{if eq .User.Theme "system"}}selected{{end}}>system</option><option {{if eq .User.Theme "light"}}selected{{end}}>light</option><option {{if eq .User.Theme "dark"}}selected{{end}}>dark</option></select></label></p>
-    <button class="btn">Save</button>
-  </form>
-  <hr>
-  <h2>Change password</h2>
-  <form method="POST" action="/account/password">
-    <p><label>Current<br><input type="password" name="current_password"></label></p>
-    <p><label>New<br><input type="password" name="new_password"></label></p>
-    <button class="btn">Change</button>
-  </form>
-  <hr>
-  <h2>Telegram</h2>
-  <p>Status: {{if .User.TelegramConfiguredAt}}configured{{else}}not configured{{end}}</p>
-  <form method="POST" action="/account/telegram">
-    <p><label>Bot token<br><input name="bot_token"></label></p>
-    <p><label>Allowed Telegram user ids (comma)<br><input name="allowed_user_ids"></label></p>
-    <button class="btn">Save</button>
-  </form>
-</section>
+<div class="narrow" style="margin:0 auto">
+  <h1>{{t .Lang "nav.account"}}</h1>
+
+  {{if .Flash}}<div class="alert alert-ok">{{.Flash}}</div>{{end}}
+  {{if .Error}}<div class="alert alert-error">{{.Error}}</div>{{end}}
+
+  <div class="card panel">
+    <h2>{{t .Lang "account.profile"}}</h2>
+    <form method="POST" action="/account">
+      <input type="hidden" name="_csrf" value="{{.CSRF}}">
+      <label class="field"><span>{{t .Lang "field.display_name"}}</span>
+        <input name="display_name" value="{{.User.DisplayName}}"></label>
+      <div class="form-row">
+        <label class="field"><span>{{t .Lang "field.timezone"}}</span>
+          <input name="timezone" value="{{.User.Timezone}}"></label>
+        <label class="field"><span>{{t .Lang "field.locale"}}</span>
+          <select name="locale">
+            <option value="en" {{if eq (printf "%s" .User.Locale) "en"}}selected{{end}}>English</option>
+            <option value="el" {{if eq (printf "%s" .User.Locale) "el"}}selected{{end}}>Ελληνικά</option>
+          </select></label>
+        <label class="field"><span>{{t .Lang "field.theme"}}</span>
+          <select name="theme">
+            <option value="system" {{if eq (printf "%s" .User.Theme) "system"}}selected{{end}}>{{t .Lang "theme.system"}}</option>
+            <option value="light" {{if eq (printf "%s" .User.Theme) "light"}}selected{{end}}>{{t .Lang "theme.light"}}</option>
+            <option value="dark" {{if eq (printf "%s" .User.Theme) "dark"}}selected{{end}}>{{t .Lang "theme.dark"}}</option>
+          </select></label>
+      </div>
+      <div class="form-actions"><button class="btn btn-primary">{{t .Lang "action.save"}}</button></div>
+    </form>
+  </div>
+
+  <div class="card panel">
+    <h2>{{t .Lang "account.password"}}</h2>
+    <form method="POST" action="/account/password">
+      <input type="hidden" name="_csrf" value="{{.CSRF}}">
+      <div class="form-row">
+        <label class="field"><span>{{t .Lang "account.current_password"}}</span>
+          <input type="password" name="current_password" autocomplete="current-password"></label>
+        <label class="field"><span>{{t .Lang "account.new_password"}}</span>
+          <input type="password" name="new_password" autocomplete="new-password"></label>
+      </div>
+      <div class="form-actions"><button class="btn btn-primary">{{t .Lang "account.change_password"}}</button></div>
+    </form>
+  </div>
+
+  <div class="card panel">
+    <h2>Telegram</h2>
+    {{if .Telegram.Configured}}
+      <p><span class="badge recurring">{{t .Lang "telegram.status_configured"}}</span>
+        {{if .Telegram.Linked}}<span class="badge">{{t .Lang "telegram.chat_linked"}}: {{.Telegram.ChatID}}</span>
+        {{else}}<span class="badge">{{t .Lang "telegram.awaiting_start"}}</span>{{end}}</p>
+      <p class="hint">{{t .Lang "telegram.help"}}</p>
+    {{else}}
+      <p><span class="badge">{{t .Lang "telegram.status_not_configured"}}</span></p>
+    {{end}}
+    <form method="POST" action="/account/telegram">
+      <input type="hidden" name="_csrf" value="{{.CSRF}}">
+      <label class="field"><span>{{t .Lang "telegram.bot_token"}}</span>
+        <input name="bot_token" placeholder="123456:ABC-..." autocomplete="off"></label>
+      <label class="field"><span>{{t .Lang "telegram.allowed_ids"}}</span>
+        <input name="allowed_user_ids" value="{{.Telegram.AllowedIDs}}" placeholder="123456789,987654321"></label>
+      <div class="form-actions">
+        <button class="btn btn-primary">{{t .Lang "action.save"}}</button>
+        {{if .Telegram.Linked}}
+        <button class="btn" formaction="/account/telegram/test" formmethod="POST">{{t .Lang "telegram.send_test"}}</button>
+        {{end}}
+        {{if .Telegram.Configured}}
+        <button class="btn btn-danger" formaction="/account/telegram/clear" formmethod="POST">{{t .Lang "telegram.disconnect"}}</button>
+        {{end}}
+      </div>
+    </form>
+  </div>
+</div>
 {{end}}
