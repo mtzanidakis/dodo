@@ -2,7 +2,6 @@ name: docker
 
 on:
   push:
-    branches: [main]
     tags: ["v*"]
 
 jobs:
@@ -33,21 +32,14 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - id: meta
-        run: |
-          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
-            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
-          else
-            echo "tag=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
-          fi
       - uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ghcr.io/mtzanidakis/dodo:${{ steps.meta.outputs.tag }}
-            ${{ github.ref_type == 'tag' && 'ghcr.io/mtzanidakis/dodo:latest' || '' }}
+            ghcr.io/mtzanidakis/dodo:${{ github.ref_name }}
+            ghcr.io/mtzanidakis/dodo:latest
           build-args: |
-            VERSION=${{ steps.meta.outputs.tag }}
+            VERSION=${{ github.ref_name }}
             COMMIT=${{ github.sha }}
