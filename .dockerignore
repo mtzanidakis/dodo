@@ -1,0 +1,27 @@
+# VCS and CI metadata
+.git
+.github
+.gitignore
+
+# node/build artifacts (the web stage installs and builds fresh)
+node_modules
+web/node_modules
+
+# local secrets and env
+mise.local.toml
+
+# runtime state and databases
+/data
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+serve.log
+
+# locally built binaries (the image builds its own)
+/dodo
+/dodo-cli
+/dodo-tui
+
+# test/coverage output
+coverage.out
