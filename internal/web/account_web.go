@@ -111,8 +111,22 @@ func (h *Handler) handleAccountPassword(w http.ResponseWriter, r *http.Request) 
 		http.Redirect(w, r, "/account?err="+i18n.T("password.invalid", string(u.Locale)), http.StatusSeeOther)
 		return
 	}
-	hash, _ := auth.HashPassword(newpw)
-	_ = h.deps.Store.Users.UpdatePassword(r.Context(), u.ID, hash)
+	hash, err := auth.HashPassword(newpw)
+	if err == nil {
+		err = h.deps.Store.Users.UpdatePassword(r.Context(), u.ID, hash)
+	}
+	if err != nil {
+		http.Redirect(w, r, "/account?err="+i18n.T("password.invalid", string(u.Locale)), http.StatusSeeOther)
+		return
+	}
+	// Invalidate every outstanding session (including any stolen cookie), then
+	// issue a fresh one so this browser stays signed in.
+	_ = h.deps.Store.Sessions.DeleteByUser(r.Context(), u.ID)
+	if gen, gErr := auth.GenerateSession(); gErr == nil {
+		if _, cErr := h.deps.Store.Sessions.Create(r.Context(), u.ID, gen.Hash, r.UserAgent(), 30*24*time.Hour); cErr == nil {
+			auth.SetSessionCookie(w, auth.SessionCookieOptions{Value: gen.Full, Secure: auth.IsSecure(r), Duration: 30 * 24 * time.Hour})
+		}
+	}
 	http.Redirect(w, r, "/account?ok="+i18n.T("password.changed", string(u.Locale)), http.StatusSeeOther)
 }
 

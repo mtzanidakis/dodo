@@ -26,6 +26,7 @@ type TelegramConfigurator interface {
 type Deps struct {
 	Store    *store.Store
 	AuthMW   *auth.Middleware
+	LoginRL  *auth.LoginRateLimiter
 	Hub      *ws.Hub
 	Telegram TelegramConfigurator
 	AssetsFS fs.FS
@@ -219,11 +220,24 @@ func (h *Handler) handleLoginPage(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) handleLoginPost(w http.ResponseWriter, r *http.Request) {
 	email := strings.ToLower(strings.TrimSpace(r.FormValue("email")))
 	password := r.FormValue("password")
-	user, err := h.deps.Store.Users.GetByEmail(r.Context(), email)
-	if err != nil || !auth.VerifyPassword(password, safeHash(user)) {
+	loginFailed := func() {
 		csrf := auth.IssueCSRF(w)
 		h.render(w, "auth/login.html", pageData{Title: "Sign in", Lang: "en", CSRF: csrf, ColorScheme: "light dark", Error: i18n.T("login.failed", "en")})
+	}
+	if h.deps.LoginRL != nil && !h.deps.LoginRL.Allow(r, email) {
+		loginFailed()
 		return
+	}
+	user, err := h.deps.Store.Users.GetByEmail(r.Context(), email)
+	if err != nil || !auth.VerifyPassword(password, safeHash(user)) {
+		if h.deps.LoginRL != nil {
+			h.deps.LoginRL.RecordFailure(r, email)
+		}
+		loginFailed()
+		return
+	}
+	if h.deps.LoginRL != nil {
+		h.deps.LoginRL.Reset(r, email)
 	}
 	gen, err := auth.GenerateSession()
 	if err != nil {

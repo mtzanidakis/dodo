@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -24,7 +25,14 @@ func NewLoginRateLimiter() *LoginRateLimiter {
 }
 
 func (l *LoginRateLimiter) key(r *http.Request, email string) string {
-	return r.RemoteAddr + "|" + email
+	// RemoteAddr is "host:port"; the ephemeral port changes on every new
+	// connection, so keying on it lets an attacker reset the counter per
+	// attempt. Key on the host only.
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host = r.RemoteAddr
+	}
+	return host + "|" + email
 }
 
 func (l *LoginRateLimiter) Allow(r *http.Request, email string) bool {
