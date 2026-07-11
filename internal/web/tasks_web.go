@@ -152,6 +152,20 @@ func (h *Handler) handleHome(w http.ResponseWriter, r *http.Request) {
 type calEvent struct {
 	Title    string
 	Priority models.Priority
+	Done     bool
+}
+
+func ruleFromTask(t *models.Task) recurrence.Rule {
+	rule := recurrence.Rule{
+		Freq:       *t.RecurrenceFreq,
+		Interval:   t.RecurrenceInterval,
+		ByDay:      parseByDay(t.RecurrenceByDay),
+		ByMonthDay: intOrZero(t.RecurrenceByMonthDay),
+	}
+	if t.RecurrenceEndAt != nil {
+		rule.EndAt = *t.RecurrenceEndAt
+	}
+	return rule
 }
 
 type calDay struct {
@@ -180,17 +194,36 @@ func (h *Handler) buildCalendar(r *http.Request, u *models.User, loc *time.Locat
 	first := time.Date(anchor.Year(), anchor.Month(), 1, 0, 0, 0, 0, loc)
 	next := first.AddDate(0, 1, 0)
 
-	tasks, _, _ := h.deps.Store.Tasks.List(r.Context(), u.ID, models.TaskFilter{
-		Filter: "all",
-		From:   ptrT(first.UTC()),
-		To:     ptrT(next.UTC()),
-		Limit:  500,
-	})
 	byDay := map[int][]calEvent{}
-	for _, t := range tasks {
-		local := t.DueAt.In(loc)
+	add := func(local time.Time, title string, prio models.Priority, done bool) {
 		if local.Year() == first.Year() && local.Month() == first.Month() {
-			byDay[local.Day()] = append(byDay[local.Day()], calEvent{Title: t.Title, Priority: t.Priority})
+			byDay[local.Day()] = append(byDay[local.Day()], calEvent{Title: title, Priority: prio, Done: done})
+		}
+	}
+
+	// Pending tasks: one-offs land on their due day; recurring tasks are
+	// expanded to every occurrence that falls within the visible month.
+	winFrom := first.Add(-time.Second).UTC()
+	winTo := next.UTC()
+	pending, _, _ := h.deps.Store.Tasks.List(r.Context(), u.ID, models.TaskFilter{Filter: "pending", Limit: 500})
+	for _, t := range pending {
+		if t.Recurring() {
+			for _, occ := range recurrence.Occurrences(ruleFromTask(t), t.DueAt, winFrom, winTo, loc) {
+				add(occ.In(loc), t.Title, t.Priority, false)
+			}
+		} else {
+			add(t.DueAt.In(loc), t.Title, t.Priority, false)
+		}
+	}
+	// Completed one-off tasks in this month.
+	completed, _, _ := h.deps.Store.Tasks.List(r.Context(), u.ID, models.TaskFilter{Filter: "completed", From: ptrT(first.UTC()), To: ptrT(next.UTC()), Limit: 500})
+	for _, t := range completed {
+		add(t.DueAt.In(loc), t.Title, t.Priority, true)
+	}
+	// Completed occurrences of recurring tasks (history) in this month.
+	if compls, err := h.deps.Store.Completions.List(r.Context(), u.ID, ptrT(first.UTC()), ptrT(next.UTC())); err == nil {
+		for _, c := range compls {
+			add(c.DueAt.In(loc), c.Title, c.Priority, true)
 		}
 	}
 
@@ -350,10 +383,7 @@ func (h *Handler) advance(loc *time.Location) func(*models.Task, time.Time) (*mo
 		if !t.Recurring() {
 			return nil, false, nil
 		}
-		rule := recurrence.Rule{Freq: *t.RecurrenceFreq, Interval: t.RecurrenceInterval, ByDay: parseByDay(t.RecurrenceByDay), ByMonthDay: intOrZero(t.RecurrenceByMonthDay)}
-		if t.RecurrenceEndAt != nil {
-			rule.EndAt = *t.RecurrenceEndAt
-		}
+		rule := ruleFromTask(t)
 		next := recurrence.NextOccurrence(rule, t.DueAt, t.DueAt, loc)
 		for !next.IsZero() && next.Before(n) {
 			next = recurrence.NextOccurrence(rule, t.DueAt, next, loc)

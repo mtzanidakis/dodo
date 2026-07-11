@@ -81,6 +81,35 @@ func TestCalendarRenders(t *testing.T) {
 	}
 }
 
+func TestCalendarExpandsRecurringOccurrences(t *testing.T) {
+	mux, st, u, session := newWebEnv(t)
+	loc, _ := time.LoadLocation(u.Timezone)
+	now := time.Now().In(loc)
+	month := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, loc)
+	// A daily task starting on the 2nd of the visible month.
+	freq := models.FreqDaily
+	start := time.Date(month.Year(), month.Month(), 2, 9, 0, 0, 0, loc)
+	if err := st.Tasks.Create(context.Background(), &models.Task{
+		UserID: u.ID, Title: "Standup", Priority: models.PriorityNormal,
+		DueAt: start.UTC(), RecurrenceFreq: &freq, RecurrenceInterval: 1, Kind: models.KindRecurring,
+	}); err != nil {
+		t.Fatalf("create recurring: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/?view=calendar&month="+month.Format("2006-01"), nil)
+	withSession(req, session)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("calendar: %d", rec.Code)
+	}
+	// A daily task must appear many times, not once.
+	occurrences := strings.Count(rec.Body.String(), ">Standup<")
+	daysInMonth := month.AddDate(0, 1, -1).Day()
+	if occurrences < daysInMonth-2 {
+		t.Fatalf("recurring task should appear on ~every day of the month, got %d of %d", occurrences, daysInMonth)
+	}
+}
+
 func TestAccountAndTokensRender(t *testing.T) {
 	mux, _, _, session := newWebEnv(t)
 	for _, path := range []string{"/account", "/tokens"} {

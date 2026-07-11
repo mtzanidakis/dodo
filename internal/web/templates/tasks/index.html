@@ -79,7 +79,7 @@
     {{range .Calendar.Weeks}}{{range .}}
       <div class="cal-cell{{if not .InMonth}} other{{end}}{{if .Today}} today{{end}}">
         <span class="cal-num">{{.Day}}</span>
-        {{range .Events}}<span class="cal-ev prio-{{.Priority}}" title="{{.Title}}">{{.Title}}</span>{{end}}
+        {{range .Events}}<span class="cal-ev prio-{{.Priority}}{{if .Done}} done{{end}}" title="{{.Title}}">{{.Title}}</span>{{end}}
       </div>
     {{end}}{{end}}
   </div>
