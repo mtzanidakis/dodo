@@ -29,23 +29,31 @@ func newDB(t *testing.T) string {
 }
 
 func runAdmin(t *testing.T, dbPath string, args []string) (int, string, string) {
+	return runAdminIn(t, dbPath, args, "")
+}
+
+// runAdminIn runs the admin CLI with stdin fed from in, so commands that read
+// the password from a (non-terminal) stdin can be exercised.
+func runAdminIn(t *testing.T, dbPath string, args []string, in string) (int, string, string) {
 	t.Helper()
 	t.Setenv("DODO_DATABASE_PATH", dbPath)
-	oldOut, oldErr := os.Stdout, os.Stderr
+	oldIn, oldOut, oldErr := os.Stdin, os.Stdout, os.Stderr
+	rIn, wIn, _ := os.Pipe()
+	go func() { _, _ = io.WriteString(wIn, in); _ = wIn.Close() }()
 	rOut, wOut, _ := os.Pipe()
 	rErr, wErr, _ := os.Pipe()
-	os.Stdout, os.Stderr = wOut, wErr
+	os.Stdin, os.Stdout, os.Stderr = rIn, wOut, wErr
 	code := admin.Run(args, "test", "abc")
 	_ = wOut.Close()
 	_ = wErr.Close()
-	os.Stdout, os.Stderr = oldOut, oldErr
+	os.Stdin, os.Stdout, os.Stderr = oldIn, oldOut, oldErr
 	outBytes, _ := io.ReadAll(rOut)
 	errBytes, _ := io.ReadAll(rErr)
 	return code, string(outBytes), string(errBytes)
 }
 
 func TestAdminUserCreate(t *testing.T) {
-	code, out, _ := runAdmin(t, newDB(t), []string{"user", "create", "--email", "admin@example.com", "--password", "pass12345"})
+	code, out, _ := runAdminIn(t, newDB(t), []string{"user", "create", "--email", "admin@example.com"}, "pass12345\n")
 	if code != 0 {
 		t.Fatalf("exit %d", code)
 	}
@@ -62,7 +70,7 @@ func TestAdminUserCreate(t *testing.T) {
 }
 
 func TestAdminPasswordValidation(t *testing.T) {
-	code, _, errStr := runAdmin(t, newDB(t), []string{"user", "create", "--email", "x@y.com", "--password", "short"})
+	code, _, errStr := runAdminIn(t, newDB(t), []string{"user", "create", "--email", "x@y.com"}, "short\n")
 	if code == 0 {
 		t.Fatalf("short password should fail")
 	}
@@ -73,7 +81,7 @@ func TestAdminPasswordValidation(t *testing.T) {
 
 func TestAdminUserListNoHashLeak(t *testing.T) {
 	dbPath := newDB(t)
-	runAdmin(t, dbPath, []string{"user", "create", "--email", "admin@example.com", "--password", "pass12345"})
+	runAdminIn(t, dbPath, []string{"user", "create", "--email", "admin@example.com"}, "pass12345\n")
 	_, out, _ := runAdmin(t, dbPath, []string{"user", "list"})
 	if strings.Contains(out, "argon2") {
 		t.Fatalf("password hash leaked in list output: %s", out)
@@ -85,7 +93,7 @@ func TestAdminUserListNoHashLeak(t *testing.T) {
 
 func TestAdminTokenCreateAndList(t *testing.T) {
 	dbPath := newDB(t)
-	runAdmin(t, dbPath, []string{"user", "create", "--email", "admin@example.com", "--password", "pass12345"})
+	runAdminIn(t, dbPath, []string{"user", "create", "--email", "admin@example.com"}, "pass12345\n")
 	code, out, _ := runAdmin(t, dbPath, []string{"token", "create", "--email", "admin@example.com", "--name", "agent"})
 	if code != 0 {
 		t.Fatalf("token create exit %d", code)
@@ -106,14 +114,14 @@ func TestAdminTokenCreateAndList(t *testing.T) {
 
 func TestAdminUserGetAndResetPassword(t *testing.T) {
 	dbPath := newDB(t)
-	runAdmin(t, dbPath, []string{"user", "create", "--email", "bob@example.com", "--password", "pass12345"})
+	runAdminIn(t, dbPath, []string{"user", "create", "--email", "bob@example.com"}, "pass12345\n")
 	_, out, _ := runAdmin(t, dbPath, []string{"user", "get", "--email", "bob@example.com"})
 	var u map[string]any
 	json.Unmarshal([]byte(out), &u)
 	if u["email"] != "bob@example.com" {
 		t.Fatalf("get mismatch: %s", out)
 	}
-	code, _, _ := runAdmin(t, dbPath, []string{"user", "reset-password", "--email", "bob@example.com", "--password", "newpass12"})
+	code, _, _ := runAdminIn(t, dbPath, []string{"user", "reset-password", "--email", "bob@example.com"}, "newpass12\n")
 	if code != 0 {
 		t.Fatalf("reset-password exit %d", code)
 	}

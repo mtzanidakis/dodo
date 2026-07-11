@@ -34,8 +34,8 @@ docker run -d --name dodo \
   -e DODO_ENCRYPTION_KEY=$(openssl rand -base64 32) \
   ghcr.io/mtzanidakis/dodo
 
-# create the first user (inside the container)
-docker exec -it dodo dodo admin user create --email you@example.com --password supersecret
+# create the first user (inside the container; prompts for the password)
+docker exec -it dodo dodo admin user create --email you@example.com
 TOK=$(docker exec -it dodo dodo admin token create --email you@example.com --name agent | jq -r .token)
 
 dodo-cli init --url http://localhost:8080 --token "$TOK"
@@ -50,7 +50,7 @@ mise install
 mise run build-all
 export DODO_ENCRYPTION_KEY=$(openssl rand -base64 32)
 export DODO_DATABASE_PATH=/tmp/dodo.sqlite
-./dodo admin user create --email admin@example.com --password supersecret
+./dodo admin user create --email admin@example.com   # prompts for the password
 ./dodo serve &
 TOK=$(./dodo admin token create --email admin@example.com --name agent | jq -r .token)
 ./dodo-cli --url http://localhost:8080 --token "$TOK" tasks create --title "Pay bill" --due 2026-07-11T17:00:00Z --priority high
@@ -72,8 +72,8 @@ cp .env.example .env && chmod 600 .env
 # edit .env: set DODO_ENCRYPTION_KEY (openssl rand -base64 32)
 docker compose up -d
 
-# first user + a CLI token
-docker compose exec dodo dodo admin user create --email you@example.com --password supersecret
+# first user + a CLI token (user create prompts for the password)
+docker compose exec dodo dodo admin user create --email you@example.com
 docker compose exec dodo dodo admin token create --email you@example.com --name agent
 ```
 
