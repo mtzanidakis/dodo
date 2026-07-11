@@ -94,7 +94,7 @@ func (h *Handler) render(w http.ResponseWriter, name string, data pageData) {
 
 func (h *Handler) Mount(mux *http.ServeMux) {
 	deps := h.deps
-	mux.Handle("GET /static/", http.StripPrefix("/static/", h.assetsHandler()))
+	mux.Handle("GET /static/{path...}", http.StripPrefix("/static/"+h.deps.Version+"/", h.assetsHandler()))
 
 	mux.HandleFunc("GET /login", h.handleLoginPage)
 	mux.HandleFunc("POST /login", h.handleLoginPost)

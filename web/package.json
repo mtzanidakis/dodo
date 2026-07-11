@@ -5,8 +5,8 @@
   "scripts": {
     "build": "node copy-vendor.js"
   },
-  "devDependencies": {
-    "tailwindcss": "^4.0.0",
-    "@tailwindcss/cli": "^4.0.0"
+  "dependencies": {
+    "htmx.org": "1.9.12",
+    "alpinejs": "3.14.1"
   }
 }

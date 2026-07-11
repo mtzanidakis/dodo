@@ -7,7 +7,7 @@
 <meta name="color-scheme" content="{{.ColorScheme}}">
 <title>{{.Title}} - dodo</title>
 <link rel="stylesheet" href="/static/{{.AssetVersion}}/app.css">
-<script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
+<script src="/static/{{.AssetVersion}}/vendor.js" defer></script>
 </head>
 <body hx-headers='{"X-CSRF-Token":"{{.CSRF}}"}'>
 <header class="topbar">
