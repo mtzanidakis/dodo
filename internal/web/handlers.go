@@ -170,7 +170,6 @@ func (h *Handler) Mount(mux *http.ServeMux) {
 
 	mux.HandleFunc("GET /login", h.handleLoginPage)
 	mux.HandleFunc("POST /login", h.handleLoginPost)
-	mux.HandleFunc("GET /logout", h.handleLogout)
 
 	sess := func(fn http.HandlerFunc) http.Handler {
 		return deps.AuthMW.AuthSession(deps.AuthMW.RequireUser(http.HandlerFunc(fn)))
@@ -178,6 +177,9 @@ func (h *Handler) Mount(mux *http.ServeMux) {
 	post := func(fn http.HandlerFunc) http.Handler {
 		return deps.AuthMW.AuthSession(deps.AuthMW.CSRF(deps.AuthMW.RequireUser(http.HandlerFunc(fn))))
 	}
+
+	// Logout is a state change, so it must be a CSRF-protected POST.
+	mux.Handle("POST /logout", post(h.handleLogout))
 
 	mux.Handle("GET /{$}", sess(h.handleHome))
 	mux.Handle("GET /account", sess(h.handleAccount))
@@ -205,11 +207,32 @@ func (h *Handler) assetsHandler() http.Handler {
 	if h.deps.AssetsFS == nil {
 		return http.NotFoundHandler()
 	}
-	fsh := http.FileServer(http.FS(h.deps.AssetsFS))
+	fsh := http.FileServer(noDirFS{http.FS(h.deps.AssetsFS)})
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 		fsh.ServeHTTP(w, r)
 	})
+}
+
+// noDirFS wraps an http.FileSystem so directory requests 404 instead of
+// rendering an index listing of asset filenames.
+type noDirFS struct{ fs http.FileSystem }
+
+func (n noDirFS) Open(name string) (http.File, error) {
+	f, err := n.fs.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	info, err := f.Stat()
+	if err != nil {
+		_ = f.Close()
+		return nil, err
+	}
+	if info.IsDir() {
+		_ = f.Close()
+		return nil, fs.ErrNotExist
+	}
+	return f, nil
 }
 
 func (h *Handler) handleLoginPage(w http.ResponseWriter, r *http.Request) {

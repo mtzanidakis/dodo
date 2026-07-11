@@ -43,7 +43,10 @@
         <a href="/account" class="{{if eq .Nav "account"}}active{{end}}">{{t .Lang "nav.account"}}</a>
         <a href="/tokens" class="{{if eq .Nav "tokens"}}active{{end}}">{{t .Lang "nav.tokens"}}</a>
         <hr>
-        <a href="/logout">{{t .Lang "nav.logout"}}</a>
+        <form method="POST" action="/logout" style="display:contents">
+          <input type="hidden" name="_csrf" value="{{.CSRF}}">
+          <button type="submit">{{t .Lang "nav.logout"}}</button>
+        </form>
       </div>
     </details>
   </nav>
