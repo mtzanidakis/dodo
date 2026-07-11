@@ -189,6 +189,84 @@ func (h *Handler) buildCompletedGroups(r *http.Request, u *models.User, loc *tim
 	return groups
 }
 
+// buildAllGroups renders the "all" view as a due-date timeline that mixes
+// pending task rows with completed occurrences (from task_completions) and
+// completed one-off tasks. Recurring task rows that carry a completion are
+// excluded, so a completed recurring series shows as its individual occurrences
+// rather than a single phantom row. A period, if set, windows the due date.
+func (h *Handler) buildAllGroups(r *http.Request, u *models.User, loc *time.Location, now time.Time, period string) []dayGroup {
+	lang := string(u.Locale)
+	from, to := models.PeriodBounds(period, now)
+	inPeriod := func(due time.Time) bool {
+		if from != nil && due.Before(*from) {
+			return false
+		}
+		if to != nil && due.After(*to) {
+			return false
+		}
+		return true
+	}
+
+	type item struct {
+		view taskView
+		due  time.Time
+	}
+	var items []item
+
+	pending, _, _ := h.deps.Store.Tasks.List(r.Context(), u.ID, models.TaskFilter{Filter: "pending", From: from, To: to, Limit: 500})
+	for _, t := range pending {
+		items = append(items, item{view: h.toTaskView(t, loc, lang, now), due: t.DueAt})
+	}
+
+	compls, _ := h.deps.Store.Completions.List(r.Context(), u.ID, nil, nil)
+	for _, c := range compls {
+		if !inPeriod(c.DueAt) {
+			continue
+		}
+		items = append(items, item{
+			due: c.DueAt,
+			view: taskView{
+				ID:             c.ID,
+				Title:          c.Title,
+				Priority:       c.Priority,
+				DueLocal:       c.DueAt.In(loc).Format("15:04"),
+				CompletedLocal: c.CompletedAt.In(loc).Format("15:04"),
+				Completed:      true,
+			},
+		})
+	}
+
+	recurring, _ := h.deps.Store.Completions.TaskIDs(r.Context(), u.ID)
+	completed, _, _ := h.deps.Store.Tasks.List(r.Context(), u.ID, models.TaskFilter{Filter: "completed", From: from, To: to, Limit: 500})
+	for _, t := range completed {
+		if t.Recurring() || recurring[t.ID] {
+			continue
+		}
+		tv := h.toTaskView(t, loc, lang, now)
+		if t.CompletedAt != nil {
+			tv.CompletedLocal = t.CompletedAt.In(loc).Format("15:04")
+		}
+		tv.Deletable = true
+		items = append(items, item{view: tv, due: t.DueAt})
+	}
+
+	sort.SliceStable(items, func(i, j int) bool { return items[i].due.Before(items[j].due) })
+
+	var groups []dayGroup
+	curKey := ""
+	for _, it := range items {
+		local := it.due.In(loc)
+		key := local.Format("2006-01-02")
+		if key != curKey || len(groups) == 0 {
+			groups = append(groups, dayGroup{Label: dayLabel(local, now, lang)})
+			curKey = key
+		}
+		g := &groups[len(groups)-1]
+		g.Tasks = append(g.Tasks, it.view)
+	}
+	return groups
+}
+
 func (h *Handler) handleHome(w http.ResponseWriter, r *http.Request) {
 	u := auth.UserFromContext(r.Context())
 	loc := loadLoc(u.Timezone)
@@ -215,16 +293,17 @@ func (h *Handler) handleHome(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if filter == "completed" {
+	switch filter {
+	case "completed":
 		pd.Groups = h.buildCompletedGroups(r, u, loc, now, period)
-		h.render(w, "tasks/index.html", pd)
-		return
+	case "all":
+		pd.Groups = h.buildAllGroups(r, u, loc, now, period)
+	default:
+		tf := models.TaskFilter{Filter: filter, Limit: 200}
+		tf.ApplyPeriod(period, now)
+		tasks, _, _ := h.deps.Store.Tasks.List(r.Context(), u.ID, tf)
+		pd.Groups = h.buildGroups(tasks, loc, string(u.Locale), now)
 	}
-
-	tf := models.TaskFilter{Filter: filter, Limit: 200}
-	tf.ApplyPeriod(period, now)
-	tasks, _, _ := h.deps.Store.Tasks.List(r.Context(), u.ID, tf)
-	pd.Groups = h.buildGroups(tasks, loc, string(u.Locale), now)
 	h.render(w, "tasks/index.html", pd)
 }
 
