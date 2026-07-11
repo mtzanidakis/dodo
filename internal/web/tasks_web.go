@@ -129,10 +129,15 @@ func (h *Handler) handleHome(w http.ResponseWriter, r *http.Request) {
 	if filter == "" {
 		filter = "pending"
 	}
+	period := r.URL.Query().Get("period")
+	if period == "" {
+		period = "all"
+	}
 	view := r.URL.Query().Get("view")
 
 	pd := h.base(w, r, u, i18n.T("nav.tasks", string(u.Locale)), "tasks")
 	pd.Filter = filter
+	pd.Period = period
 	pd.View = view
 	pd.Freqs = freqOptions(string(u.Locale), "")
 
@@ -142,7 +147,9 @@ func (h *Handler) handleHome(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tasks, _, _ := h.deps.Store.Tasks.List(r.Context(), u.ID, models.TaskFilter{Filter: filter, Limit: 200})
+	tf := models.TaskFilter{Filter: filter, Limit: 200}
+	tf.ApplyPeriod(period, now)
+	tasks, _, _ := h.deps.Store.Tasks.List(r.Context(), u.ID, tf)
 	pd.Groups = h.buildGroups(tasks, loc, string(u.Locale), now)
 	h.render(w, "tasks/index.html", pd)
 }
