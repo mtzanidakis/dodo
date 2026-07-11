@@ -14,18 +14,27 @@
 {{if .User}}
 <header class="topbar">
   <a class="brand" href="/"><span class="dot"></span>dodo</a>
-  <span class="who">{{.User.Email}}</span>
   <nav>
     <a href="/" class="{{if eq .Nav "tasks"}}active{{end}}">{{t .Lang "nav.tasks"}}</a>
-    <a href="/tokens" class="{{if eq .Nav "tokens"}}active{{end}}">{{t .Lang "nav.tokens"}}</a>
-    <a href="/account" class="{{if eq .Nav "account"}}active{{end}}">{{t .Lang "nav.account"}}</a>
     <select data-theme-select title="theme" class="btn btn-sm" style="width:auto">
       <option value="system">{{t .Lang "theme.system"}}</option>
       <option value="light">{{t .Lang "theme.light"}}</option>
       <option value="dark">{{t .Lang "theme.dark"}}</option>
     </select>
     <span id="ws-dot" class="ws-dot" title="live"></span>
-    <a href="/logout" class="btn btn-sm btn-ghost">{{t .Lang "nav.logout"}}</a>
+    <details class="usermenu">
+      <summary>
+        <span class="avatar">{{slice .User.Email 0 1}}</span>
+        <span class="who">{{.User.Email}}</span>
+        <span class="caret" aria-hidden="true">▾</span>
+      </summary>
+      <div class="menu card">
+        <a href="/tokens" class="{{if eq .Nav "tokens"}}active{{end}}">{{t .Lang "nav.tokens"}}</a>
+        <a href="/account" class="{{if eq .Nav "account"}}active{{end}}">{{t .Lang "nav.account"}}</a>
+        <hr>
+        <a href="/logout">{{t .Lang "nav.logout"}}</a>
+      </div>
+    </details>
   </nav>
 </header>
 {{end}}

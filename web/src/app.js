@@ -46,6 +46,13 @@
     }
   });
 
+  // Close the user dropdown when clicking outside it.
+  document.addEventListener("click", function (e) {
+    document.querySelectorAll("details.usermenu[open]").forEach(function (d) {
+      if (!d.contains(e.target)) d.removeAttribute("open");
+    });
+  });
+
   // ---- toasts ---------------------------------------------------------
   function toast(msg) {
     var box = document.getElementById("toasts");
