@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"math/big"
+	"sync"
 
 	"golang.org/x/crypto/argon2"
 )
@@ -31,9 +32,31 @@ func HashPassword(password string) (string, error) {
 	return "argon2id$" + b64Salt + "$" + b64Hash, nil
 }
 
+// dummyOnce/dummyHash hold a real argon2 encoding used to equalize verification
+// time when the account doesn't exist, so an attacker can't enumerate valid
+// emails by timing the (much cheaper) missing-user path.
+var (
+	dummyOnce sync.Once
+	dummyHash string
+)
+
+func dummyEncoded() string {
+	dummyOnce.Do(func() {
+		dummyHash, _ = HashPassword("timing-equalizer-never-a-real-password")
+	})
+	return dummyHash
+}
+
 func VerifyPassword(password, encoded string) bool {
-	if encoded == "" || password == "" {
+	if password == "" {
 		return false
+	}
+	// Unknown account: run a full verification against a dummy hash so the
+	// response time matches the wrong-password path, then always fail.
+	forceFail := false
+	if encoded == "" {
+		encoded = dummyEncoded()
+		forceFail = true
 	}
 	saltStr, hashStr, ok := splitEncoded(encoded)
 	if !ok {
@@ -51,7 +74,7 @@ func VerifyPassword(password, encoded string) bool {
 	if len(other) != len(hash) {
 		return false
 	}
-	return subtle.ConstantTimeCompare(other, hash) == 1
+	return subtle.ConstantTimeCompare(other, hash) == 1 && !forceFail
 }
 
 func splitEncoded(s string) (string, string, bool) {

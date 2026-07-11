@@ -52,6 +52,13 @@ func Run(args []string) int {
 		fmt.Fprintln(os.Stderr, "error: backup failed:", err)
 		return 1
 	}
+	// The dump holds the full database; restrict it to the owner so it isn't
+	// left world-readable on a shared host (VACUUM INTO creates it with the
+	// process umask, typically 0644).
+	if err := os.Chmod(*dump, 0o600); err != nil {
+		fmt.Fprintln(os.Stderr, "error: could not restrict backup permissions:", err)
+		return 1
+	}
 	fmt.Printf("backup written to %s\n", *dump)
 	return 0
 }

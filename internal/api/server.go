@@ -61,7 +61,36 @@ func NewServer(cfg config.Config, st *store.Store, hub *ws.Hub, telegram Telegra
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	s.registerRoutes(mux)
-	return s.recoverMW(s.logMW(mux))
+	return securityHeadersMW(s.recoverMW(s.logMW(mux)))
+}
+
+// contentSecurityPolicy allows 'unsafe-inline'/'unsafe-eval' in script-src
+// because the templates rely on inline on* handlers and Alpine expression
+// evaluation; tightening it requires moving those into app.js. The policy
+// still blocks framing, cross-origin form posts, plugins and off-origin
+// resource loads.
+const contentSecurityPolicy = "default-src 'self'; " +
+	"script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+	"style-src 'self' 'unsafe-inline'; " +
+	"img-src 'self' data:; " +
+	"connect-src 'self'; " +
+	"base-uri 'self'; " +
+	"form-action 'self'; " +
+	"object-src 'none'; " +
+	"frame-ancestors 'none'"
+
+func securityHeadersMW(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("Content-Security-Policy", contentSecurityPolicy)
+		h.Set("X-Frame-Options", "DENY")
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		if auth.IsSecure(r) {
+			h.Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func Serve(cfg config.Config, version, commit string) error {

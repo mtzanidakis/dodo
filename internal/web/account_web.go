@@ -111,8 +111,22 @@ func (h *Handler) handleAccountPassword(w http.ResponseWriter, r *http.Request) 
 		http.Redirect(w, r, "/account?err="+i18n.T("password.invalid", string(u.Locale)), http.StatusSeeOther)
 		return
 	}
-	hash, _ := auth.HashPassword(newpw)
-	_ = h.deps.Store.Users.UpdatePassword(r.Context(), u.ID, hash)
+	hash, err := auth.HashPassword(newpw)
+	if err == nil {
+		err = h.deps.Store.Users.UpdatePassword(r.Context(), u.ID, hash)
+	}
+	if err != nil {
+		http.Redirect(w, r, "/account?err="+i18n.T("password.invalid", string(u.Locale)), http.StatusSeeOther)
+		return
+	}
+	// Invalidate every outstanding session (including any stolen cookie), then
+	// issue a fresh one so this browser stays signed in.
+	_ = h.deps.Store.Sessions.DeleteByUser(r.Context(), u.ID)
+	if gen, gErr := auth.GenerateSession(); gErr == nil {
+		if _, cErr := h.deps.Store.Sessions.Create(r.Context(), u.ID, gen.Hash, r.UserAgent(), 30*24*time.Hour); cErr == nil {
+			auth.SetSessionCookie(w, auth.SessionCookieOptions{Value: gen.Full, Secure: auth.IsSecure(r), Duration: 30 * 24 * time.Hour})
+		}
+	}
 	http.Redirect(w, r, "/account?ok="+i18n.T("password.changed", string(u.Locale)), http.StatusSeeOther)
 }
 
@@ -160,7 +174,7 @@ func (h *Handler) handleTokens(w http.ResponseWriter, r *http.Request) {
 	u := auth.UserFromContext(r.Context())
 	pd := h.base(w, r, u, i18n.T("nav.tokens", string(u.Locale)), "tokens")
 	pd.Tokens = h.listTokenViews(r, u.ID)
-	pd.NewToken = r.URL.Query().Get("new")
+	pd.NewToken = takeNewToken(w, r)
 	h.render(w, "tokens/index.html", pd)
 }
 
@@ -197,7 +211,40 @@ func (h *Handler) handleCreateToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.deps.Hub.Publish(u.ID, "tokens.updated", nil)
-	http.Redirect(w, r, "/tokens?new="+gen.Full, http.StatusSeeOther)
+	// Hand the plaintext token to the next page via a short-lived, HttpOnly,
+	// one-time cookie instead of the URL, so the secret never lands in browser
+	// history, access logs, or Referer headers.
+	http.SetCookie(w, &http.Cookie{
+		Name:     newTokenCookie,
+		Value:    gen.Full,
+		Path:     "/tokens",
+		MaxAge:   120,
+		HttpOnly: true,
+		Secure:   auth.IsSecure(r),
+		SameSite: http.SameSiteLaxMode,
+	})
+	http.Redirect(w, r, "/tokens", http.StatusSeeOther)
+}
+
+const newTokenCookie = "dodo_new_token"
+
+// takeNewToken reads and immediately clears the one-time new-token cookie so
+// the plaintext value is shown exactly once.
+func takeNewToken(w http.ResponseWriter, r *http.Request) string {
+	c, err := r.Cookie(newTokenCookie)
+	if err != nil || c.Value == "" {
+		return ""
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     newTokenCookie,
+		Value:    "",
+		Path:     "/tokens",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   auth.IsSecure(r),
+		SameSite: http.SameSiteLaxMode,
+	})
+	return c.Value
 }
 
 func (h *Handler) handleRevokeToken(w http.ResponseWriter, r *http.Request) {

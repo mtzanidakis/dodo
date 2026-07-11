@@ -58,3 +58,10 @@ func (s *Sessions) DeleteExpired(ctx context.Context, now time.Time) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM sessions WHERE expires_at < ?`, now.UTC())
 	return err
 }
+
+// DeleteByUser removes every session belonging to a user. Used to invalidate
+// all outstanding cookies after a password change.
+func (s *Sessions) DeleteByUser(ctx context.Context, userID string) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM sessions WHERE user_id = ?`, userID)
+	return err
+}

@@ -14,6 +14,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	webHandler := web.NewHandler(web.Deps{
 		Store:    s.store,
 		AuthMW:   mw,
+		LoginRL:  s.loginRL,
 		Hub:      s.hub,
 		Telegram: s,
 		AssetsFS: assetsFS,

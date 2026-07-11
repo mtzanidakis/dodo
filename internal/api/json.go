@@ -47,7 +47,12 @@ func mapError(err error) (string, int) {
 	}
 }
 
+// maxJSONBody caps request bodies so a client can't exhaust memory with an
+// arbitrarily large payload.
+const maxJSONBody = 1 << 20 // 1 MiB
+
 func decodeJSON(r *http.Request, v any) error {
+	r.Body = http.MaxBytesReader(nil, r.Body, maxJSONBody)
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(v); err != nil {

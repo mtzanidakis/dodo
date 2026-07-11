@@ -92,6 +92,9 @@ func (s *Server) handleChangePassword(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
+	// Invalidate every outstanding session so a stolen cookie can't survive
+	// the password change (the caller re-authenticates on the next request).
+	_ = s.store.Sessions.DeleteByUser(r.Context(), u.ID)
 	s.audit(r, "password.change", "user", u.ID, nil)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
