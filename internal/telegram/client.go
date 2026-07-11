@@ -22,11 +22,17 @@ type Client struct {
 
 func New(token string) *Client {
 	return &Client{
-		token:      token,
-		apiBase:    "https://api.telegram.org",
-		httpClient: &http.Client{Timeout: 30 * time.Second},
+		token:   token,
+		apiBase: "https://api.telegram.org",
+		// Must exceed the getUpdates long-poll timeout (LongPollSeconds), or
+		// every idle poll aborts with a client timeout and the poller churns.
+		httpClient: &http.Client{Timeout: 60 * time.Second},
 	}
 }
+
+// LongPollSeconds is the getUpdates long-poll timeout; the HTTP client timeout
+// above must be larger.
+const LongPollSeconds = 50
 
 func (c *Client) WithAPIBase(base string) *Client {
 	c.apiBase = base
