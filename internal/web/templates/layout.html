@@ -16,19 +16,23 @@
   <a class="brand" href="/"><span class="dot"></span>dodo</a>
   <nav>
     <a href="/" class="{{if eq .Nav "tasks"}}active{{end}}">{{t .Lang "nav.tasks"}}</a>
-    <form method="POST" action="/ui/locale" class="lang-form">
+    <form method="POST" action="/ui/locale" class="segmented lang-switch">
       <input type="hidden" name="_csrf" value="{{.CSRF}}">
-      <select name="locale" class="btn btn-sm" title="{{t .Lang "field.locale"}}" onchange="this.form.submit()">
-        <option value="en" {{if eq (printf "%s" .User.Locale) "en"}}selected{{end}}>EN</option>
-        <option value="el" {{if eq (printf "%s" .User.Locale) "el"}}selected{{end}}>ΕΛ</option>
-      </select>
+      <button type="submit" name="locale" value="en" class="{{if eq (printf "%s" .User.Locale) "en"}}active{{end}}">EN</button>
+      <button type="submit" name="locale" value="el" class="{{if eq (printf "%s" .User.Locale) "el"}}active{{end}}">ΕΛ</button>
     </form>
-    <div class="theme-toggle" role="group" aria-label="{{t .Lang "field.theme"}}">
-      <button type="button" data-set-theme="system" title="{{t .Lang "theme.system"}}">◐</button>
-      <button type="button" data-set-theme="light" title="{{t .Lang "theme.light"}}">☀</button>
-      <button type="button" data-set-theme="dark" title="{{t .Lang "theme.dark"}}">☾</button>
-    </div>
-    <details class="usermenu">
+    <details class="dropdown theme-menu">
+      <summary title="{{t .Lang "field.theme"}}">
+        <span data-theme-icon>{{if eq (printf "%s" .User.Theme) "light"}}☀{{else if eq (printf "%s" .User.Theme) "dark"}}☾{{else}}◐{{end}}</span>
+        <span class="caret" aria-hidden="true">▾</span>
+      </summary>
+      <div class="menu card">
+        <button type="button" data-set-theme="system">◐ {{t .Lang "theme.system"}}</button>
+        <button type="button" data-set-theme="light">☀ {{t .Lang "theme.light"}}</button>
+        <button type="button" data-set-theme="dark">☾ {{t .Lang "theme.dark"}}</button>
+      </div>
+    </details>
+    <details class="dropdown usermenu">
       <summary>
         <span class="avatar">{{slice .User.Email 0 1}}</span>
         <span class="who">{{.User.Email}}</span>

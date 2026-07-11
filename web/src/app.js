@@ -22,9 +22,14 @@
     }
   }
 
+  var THEME_ICONS = { system: "◐", light: "☀", dark: "☾" };
+
   function markActiveTheme(theme) {
     document.querySelectorAll("[data-set-theme]").forEach(function (el) {
       el.classList.toggle("active", el.getAttribute("data-set-theme") === theme);
+    });
+    document.querySelectorAll("[data-theme-icon]").forEach(function (el) {
+      el.textContent = THEME_ICONS[theme] || THEME_ICONS.system;
     });
   }
 
@@ -55,12 +60,16 @@
 
   document.addEventListener("click", function (e) {
     var el = e.target.closest ? e.target.closest("[data-set-theme]") : null;
-    if (el) setTheme(el.getAttribute("data-set-theme"));
+    if (el) {
+      setTheme(el.getAttribute("data-set-theme"));
+      var d = el.closest("details.dropdown");
+      if (d) d.removeAttribute("open");
+    }
   });
 
-  // Close the user dropdown when clicking outside it.
+  // Close any open dropdown when clicking outside it.
   document.addEventListener("click", function (e) {
-    document.querySelectorAll("details.usermenu[open]").forEach(function (d) {
+    document.querySelectorAll("details.dropdown[open]").forEach(function (d) {
       if (!d.contains(e.target)) d.removeAttribute("open");
     });
   });
