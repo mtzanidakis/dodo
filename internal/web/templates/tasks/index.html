@@ -1,23 +1,87 @@
 {{define "content"}}
-<div style="padding:1rem">
-  <div style="display:flex;gap:0.5rem;margin-bottom:1rem">
-    <a class="btn" href="/?filter=pending">Pending</a>
-    <a class="btn" href="/?filter=completed">Completed</a>
-    <a class="btn" href="/?filter=all">All</a>
+<div x-data="{ showForm: false }">
+  <div class="toolbar">
+    <div class="segmented">
+      <a href="/?view=list&filter={{.Filter}}" class="{{if ne .View "calendar"}}active{{end}}">{{t .Lang "view.list"}}</a>
+      <a href="/?view=calendar" class="{{if eq .View "calendar"}}active{{end}}">{{t .Lang "view.calendar"}}</a>
+    </div>
+    {{if ne .View "calendar"}}
+    <div class="segmented">
+      <a href="/?filter=pending" class="{{if eq .Filter "pending"}}active{{end}}">{{t .Lang "filter.pending"}}</a>
+      <a href="/?filter=completed" class="{{if eq .Filter "completed"}}active{{end}}">{{t .Lang "filter.completed"}}</a>
+      <a href="/?filter=all" class="{{if eq .Filter "all"}}active{{end}}">{{t .Lang "filter.all"}}</a>
+    </div>
+    {{end}}
+    <div class="spacer"></div>
+    <button class="btn btn-primary" @click="showForm = !showForm">+ {{t .Lang "action.new_task"}}</button>
   </div>
+
+  <div class="card panel" x-show="showForm" x-cloak>
+    <form method="POST" action="/ui/tasks">
+      <input type="hidden" name="_csrf" value="{{.CSRF}}">
+      <label class="field"><span>{{t .Lang "field.title"}}</span>
+        <input name="title" required placeholder="{{t .Lang "field.title"}}"></label>
+      <div class="form-row">
+        <label class="field"><span>{{t .Lang "field.due_at"}}</span>
+          <input type="datetime-local" name="due_at" required></label>
+        <label class="field"><span>{{t .Lang "field.priority"}}</span>
+          <select name="priority">
+            <option value="low">{{t .Lang "priority.low"}}</option>
+            <option value="normal" selected>{{t .Lang "priority.normal"}}</option>
+            <option value="high">{{t .Lang "priority.high"}}</option>
+          </select></label>
+      </div>
+      <div class="form-row">
+        <label class="field"><span>{{t .Lang "field.repeat"}}</span>
+          <select name="recurrence_freq">
+            {{range .Freqs}}<option value="{{.Value}}">{{.Label}}</option>{{end}}
+          </select></label>
+        <label class="field"><span>{{t .Lang "field.interval"}}</span>
+          <input type="number" name="recurrence_interval" min="1" value="1"></label>
+      </div>
+      <label class="field"><span>{{t .Lang "field.description"}}</span>
+        <textarea name="description" rows="2"></textarea></label>
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">{{t .Lang "action.save"}}</button>
+        <button class="btn btn-ghost" type="button" @click="showForm = false">{{t .Lang "action.cancel"}}</button>
+      </div>
+    </form>
+  </div>
+
+  {{if eq .View "calendar"}}
+    {{template "calendar" .}}
+  {{else}}
   <div id="task-list">
-  {{range .Tasks}}
-  <div class="task-row" id="task-{{.ID}}">
-    <span class="prio-{{.Priority}}">{{priorityIcon .Priority}}</span>
-    <strong>{{.Title}}</strong>
-    <span style="opacity:0.7">{{dueLocal .DueAt $.User.Timezone}}</span>
-    {{if not .CompletedAt}}
-    <span style="margin-left:auto">
-      <button class="btn" hx-post="/ui/tasks/{{.ID}}/complete" hx-target="#task-{{.ID}}" hx-swap="outerHTML">Complete</button>
-    </span>
-    {{else}}<span style="margin-left:auto;opacity:0.6">done</span>{{end}}
+    {{if .Groups}}
+      {{range .Groups}}
+      <div class="day-group">
+        <div class="day-heading">{{.Label}}</div>
+        {{range .Tasks}}{{template "row" (dict "Task" . "Lang" $.Lang "CSRF" $.CSRF)}}{{end}}
+      </div>
+      {{end}}
+    {{else}}
+      <div class="empty"><div class="big">🎉</div>{{t .Lang "tasks.empty"}}</div>
+    {{end}}
   </div>
-  {{else}}<p>No tasks.</p>{{end}}
+  {{end}}
+</div>
+{{end}}
+
+{{define "calendar"}}
+<div class="calendar">
+  <div class="cal-head">
+    <a class="btn btn-sm" href="/?view=calendar&month={{.Calendar.Prev}}">‹</a>
+    <span class="month">{{.Calendar.MonthLabel}}</span>
+    <a class="btn btn-sm" href="/?view=calendar&month={{.Calendar.Next}}">›</a>
+  </div>
+  <div class="cal-grid">
+    {{range .Calendar.DOW}}<div class="cal-dow">{{.}}</div>{{end}}
+    {{range .Calendar.Weeks}}{{range .}}
+      <div class="cal-cell{{if not .InMonth}} other{{end}}{{if .Today}} today{{end}}">
+        <span class="cal-num">{{.Day}}</span>
+        {{range .Events}}<span class="cal-ev prio-{{.Priority}}" title="{{.Title}}">{{.Title}}</span>{{end}}
+      </div>
+    {{end}}{{end}}
   </div>
 </div>
 {{end}}

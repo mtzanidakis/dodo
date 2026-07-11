@@ -1,0 +1,51 @@
+{{define "content"}}
+<div class="narrow" style="margin:0 auto">
+  <h1>{{t .Lang "nav.tokens"}}</h1>
+  <p class="hint">{{t .Lang "tokens.intro"}}</p>
+
+  {{if .NewToken}}
+  <div class="token-reveal">
+    <code>{{.NewToken}}</code>
+    <button class="btn btn-sm" onclick="navigator.clipboard && navigator.clipboard.writeText('{{.NewToken}}')">{{t .Lang "action.copy"}}</button>
+  </div>
+  <p class="hint">{{t .Lang "tokens.shown_once"}}</p>
+  {{end}}
+
+  <div class="card panel">
+    <form method="POST" action="/ui/tokens" style="display:flex;gap:0.6rem;align-items:flex-end">
+      <input type="hidden" name="_csrf" value="{{.CSRF}}">
+      <label class="field" style="flex:1;margin:0"><span>{{t .Lang "tokens.name"}}</span>
+        <input name="name" placeholder="laptop-cli" required></label>
+      <button class="btn btn-primary" type="submit">{{t .Lang "tokens.create"}}</button>
+    </form>
+  </div>
+
+  <div class="card panel">
+    {{if .Tokens}}
+    <table class="table">
+      <thead><tr>
+        <th>{{t .Lang "tokens.name"}}</th><th>{{t .Lang "tokens.prefix"}}</th>
+        <th>{{t .Lang "tokens.last_used"}}</th><th></th>
+      </tr></thead>
+      <tbody>
+      {{range .Tokens}}
+      <tr>
+        <td>{{.Name}}</td>
+        <td><code class="mono">{{.Prefix}}…</code></td>
+        <td>{{if .LastUsedAt}}{{.LastUsedAt}}{{else}}—{{end}}</td>
+        <td style="text-align:right">
+          <form method="POST" action="/ui/tokens/{{.ID}}/delete" onsubmit="return confirm('{{t $.Lang "tokens.revoke_confirm"}}')">
+            <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+            <button class="btn btn-sm btn-danger" type="submit">{{t $.Lang "action.revoke"}}</button>
+          </form>
+        </td>
+      </tr>
+      {{end}}
+      </tbody>
+    </table>
+    {{else}}
+    <p class="hint">{{t .Lang "tokens.empty"}}</p>
+    {{end}}
+  </div>
+</div>
+{{end}}
