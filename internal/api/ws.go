@@ -17,9 +17,10 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
-	c, err := websocket.Accept(w, r, &websocket.AcceptOptions{
-		OriginPatterns: []string{"*"},
-	})
+	// No OriginPatterns: coder/websocket then enforces same-origin (the Origin
+	// header host must match Host), blocking cross-site WebSocket hijacking.
+	// Non-browser clients (no Origin header) are still accepted.
+	c, err := websocket.Accept(w, r, nil)
 	if err != nil {
 		return
 	}

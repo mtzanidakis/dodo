@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/base64"
 	"errors"
 	"net/http"
@@ -119,12 +120,17 @@ func (m *Middleware) CSRF(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		if bearerToken(r) != "" {
+		sess, err := r.Cookie(SessionCookie)
+		hasSession := err == nil && sess.Value != ""
+		// A bearer token is never sent automatically by a browser, so a
+		// token-only request can't be forged cross-site. But if a session
+		// cookie is also present the request may be cookie-authenticated, so
+		// CSRF must still be enforced (an invalid bearer header must not be a
+		// bypass).
+		if bearerToken(r) != "" && !hasSession {
 			next.ServeHTTP(w, r)
 			return
 		}
-		sess, err := r.Cookie(SessionCookie)
-		hasSession := err == nil && sess.Value != ""
 		cookie, err := r.Cookie(CSRFCookie)
 		hasCSRF := err == nil && cookie.Value != ""
 		if !hasSession && !hasCSRF {
@@ -149,7 +155,9 @@ func (m *Middleware) CSRF(next http.Handler) http.Handler {
 }
 
 func safeEqual(a, b string) bool {
-	return strings.EqualFold(a, b) && len(a) == len(b)
+	// ConstantTimeCompare returns 0 when the lengths differ, so it also covers
+	// the length check; the token is case-sensitive base64url, so no folding.
+	return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
 }
 
 func csrfReject(w http.ResponseWriter, r *http.Request) {

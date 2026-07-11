@@ -120,7 +120,9 @@ func (c *Client) callOnce(ctx context.Context, method string, params url.Values,
 		resp, err = c.httpClient.Do(req)
 	}
 	if err != nil {
-		return nil, err
+		// Transport errors are *url.Error and embed the full request URL, which
+		// contains the bot token; redact it before it reaches any log.
+		return nil, c.redactErr(err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	raw, err := io.ReadAll(resp.Body)
@@ -185,6 +187,26 @@ func (c *Client) SendMessageWithMarkup(ctx context.Context, chatID, text string,
 }
 
 func (c *Client) Token() string { return c.token }
+
+// redactedError sanitizes the token out of an error's message while keeping the
+// original error reachable via errors.Is/errors.As.
+type redactedError struct {
+	err   error
+	token string
+}
+
+func (e *redactedError) Error() string {
+	return strings.ReplaceAll(e.err.Error(), e.token, "<redacted>")
+}
+
+func (e *redactedError) Unwrap() error { return e.err }
+
+func (c *Client) redactErr(err error) error {
+	if err == nil || c.token == "" {
+		return err
+	}
+	return &redactedError{err: err, token: c.token}
+}
 
 type Update struct {
 	UpdateID      int64          `json:"update_id"`
