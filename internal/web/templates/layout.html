@@ -16,12 +16,18 @@
   <a class="brand" href="/"><span class="dot"></span>dodo</a>
   <nav>
     <a href="/" class="{{if eq .Nav "tasks"}}active{{end}}">{{t .Lang "nav.tasks"}}</a>
-    <select data-theme-select title="theme" class="btn btn-sm" style="width:auto">
-      <option value="system">{{t .Lang "theme.system"}}</option>
-      <option value="light">{{t .Lang "theme.light"}}</option>
-      <option value="dark">{{t .Lang "theme.dark"}}</option>
-    </select>
-    <span id="ws-dot" class="ws-dot" title="live"></span>
+    <form method="POST" action="/ui/locale" class="lang-form">
+      <input type="hidden" name="_csrf" value="{{.CSRF}}">
+      <select name="locale" class="btn btn-sm" title="{{t .Lang "field.locale"}}" onchange="this.form.submit()">
+        <option value="en" {{if eq (printf "%s" .User.Locale) "en"}}selected{{end}}>EN</option>
+        <option value="el" {{if eq (printf "%s" .User.Locale) "el"}}selected{{end}}>ΕΛ</option>
+      </select>
+    </form>
+    <div class="theme-toggle" role="group" aria-label="{{t .Lang "field.theme"}}">
+      <button type="button" data-set-theme="system" title="{{t .Lang "theme.system"}}">◐</button>
+      <button type="button" data-set-theme="light" title="{{t .Lang "theme.light"}}">☀</button>
+      <button type="button" data-set-theme="dark" title="{{t .Lang "theme.dark"}}">☾</button>
+    </div>
     <details class="usermenu">
       <summary>
         <span class="avatar">{{slice .User.Email 0 1}}</span>
