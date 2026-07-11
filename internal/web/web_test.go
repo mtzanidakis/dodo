@@ -191,6 +191,45 @@ func TestCalendarRenders(t *testing.T) {
 	}
 }
 
+func TestCalendarShowsCompletedOccurrenceOnDueMonth(t *testing.T) {
+	mux, st, u, session := newWebEnv(t)
+	ctx := context.Background()
+	loc, _ := time.LoadLocation(u.Timezone)
+	now := time.Now().In(loc)
+	// Occurrence due two months ago, but completed now.
+	dueMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, loc).AddDate(0, -2, 0)
+	occDue := time.Date(dueMonth.Year(), dueMonth.Month(), 15, 9, 0, 0, 0, loc)
+	freq := models.FreqMonthly
+	task := &models.Task{UserID: u.ID, Title: "Rent", Priority: models.PriorityHigh, DueAt: occDue.UTC(), RecurrenceFreq: &freq, RecurrenceInterval: 1, Kind: models.KindRecurring}
+	if err := st.Tasks.Create(ctx, task); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	advance := func(tk *models.Task, _ time.Time) (*models.TaskCompletion, bool, error) {
+		tk.DueAt = tk.DueAt.AddDate(0, 1, 0)
+		return nil, false, nil
+	}
+	if _, _, _, err := st.Tasks.Complete(ctx, u.ID, task.ID, time.Now().UTC(), advance); err != nil {
+		t.Fatalf("complete: %v", err)
+	}
+	// The due month, filtered to completed, must show the occurrence even
+	// though it was completed in a different month.
+	req := httptest.NewRequest(http.MethodGet, "/?view=calendar&filter=completed&month="+dueMonth.Format("2006-01"), nil)
+	withSession(req, session)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if !strings.Contains(rec.Body.String(), ">Rent<") {
+		t.Fatalf("completed occurrence should appear in its due month")
+	}
+	// Pending filter must not show it (it is completed, not pending).
+	req = httptest.NewRequest(http.MethodGet, "/?view=calendar&filter=pending&month="+dueMonth.Format("2006-01"), nil)
+	withSession(req, session)
+	rec = httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if strings.Contains(rec.Body.String(), ">Rent<") {
+		t.Fatalf("pending calendar should not show the completed occurrence")
+	}
+}
+
 func TestCalendarExpandsRecurringOccurrences(t *testing.T) {
 	mux, st, u, session := newWebEnv(t)
 	loc, _ := time.LoadLocation(u.Timezone)

@@ -288,7 +288,7 @@ func (h *Handler) handleHome(w http.ResponseWriter, r *http.Request) {
 	pd.Freqs = freqOptions(string(u.Locale), "")
 
 	if view == "calendar" {
-		pd.Calendar = h.buildCalendar(r, u, loc, now)
+		pd.Calendar = h.buildCalendar(r, u, loc, now, filter)
 		h.render(w, "tasks/index.html", pd)
 		return
 	}
@@ -343,7 +343,7 @@ type calendarView struct {
 	Weeks      [][]calDay
 }
 
-func (h *Handler) buildCalendar(r *http.Request, u *models.User, loc *time.Location, now time.Time) *calendarView {
+func (h *Handler) buildCalendar(r *http.Request, u *models.User, loc *time.Location, now time.Time, filter string) *calendarView {
 	monthStr := r.URL.Query().Get("month")
 	var anchor time.Time
 	if t, err := time.ParseInLocation("2006-01", monthStr, loc); err == nil {
@@ -361,29 +361,43 @@ func (h *Handler) buildCalendar(r *http.Request, u *models.User, loc *time.Locat
 		}
 	}
 
-	// Pending tasks: one-offs land on their due day; recurring tasks are
-	// expanded to every occurrence that falls within the visible month.
+	showPending := filter == "pending" || filter == "all"
+	showCompleted := filter == "completed" || filter == "all"
 	winFrom := first.Add(-time.Second).UTC()
 	winTo := next.UTC()
-	pending, _, _ := h.deps.Store.Tasks.List(r.Context(), u.ID, models.TaskFilter{Filter: "pending", Limit: 500})
-	for _, t := range pending {
-		if t.Recurring() {
-			for _, occ := range recurrence.Occurrences(ruleFromTask(t), t.DueAt, winFrom, winTo, loc) {
-				add(occ.In(loc), t.Title, t.Priority, false)
+
+	if showPending {
+		// One-offs land on their due day; recurring tasks are expanded to
+		// every occurrence that falls within the visible month.
+		pending, _, _ := h.deps.Store.Tasks.List(r.Context(), u.ID, models.TaskFilter{Filter: "pending", Limit: 500})
+		for _, t := range pending {
+			if t.Recurring() {
+				for _, occ := range recurrence.Occurrences(ruleFromTask(t), t.DueAt, winFrom, winTo, loc) {
+					add(occ.In(loc), t.Title, t.Priority, false)
+				}
+			} else {
+				add(t.DueAt.In(loc), t.Title, t.Priority, false)
 			}
-		} else {
-			add(t.DueAt.In(loc), t.Title, t.Priority, false)
 		}
 	}
-	// Completed one-off tasks in this month.
-	completed, _, _ := h.deps.Store.Tasks.List(r.Context(), u.ID, models.TaskFilter{Filter: "completed", From: ptrT(first.UTC()), To: ptrT(next.UTC()), Limit: 500})
-	for _, t := range completed {
-		add(t.DueAt.In(loc), t.Title, t.Priority, true)
-	}
-	// Completed occurrences of recurring tasks (history) in this month.
-	if compls, err := h.deps.Store.Completions.List(r.Context(), u.ID, ptrT(first.UTC()), ptrT(next.UTC())); err == nil {
-		for _, c := range compls {
-			add(c.DueAt.In(loc), c.Title, c.Priority, true)
+
+	if showCompleted {
+		// Genuine completed one-offs on their due day (recurring rows excluded;
+		// their occurrences come from task_completions).
+		recurring, _ := h.deps.Store.Completions.TaskIDs(r.Context(), u.ID)
+		completed, _, _ := h.deps.Store.Tasks.List(r.Context(), u.ID, models.TaskFilter{Filter: "completed", From: ptrT(first.UTC()), To: ptrT(next.UTC()), Limit: 500})
+		for _, t := range completed {
+			if t.Recurring() || recurring[t.ID] {
+				continue
+			}
+			add(t.DueAt.In(loc), t.Title, t.Priority, true)
+		}
+		// Each completed recurring occurrence lands on its own due day,
+		// regardless of when it was completed.
+		if compls, err := h.deps.Store.Completions.ListByDue(r.Context(), u.ID, ptrT(first.UTC()), ptrT(next.UTC())); err == nil {
+			for _, c := range compls {
+				add(c.DueAt.In(loc), c.Title, c.Priority, true)
+			}
 		}
 	}
 
