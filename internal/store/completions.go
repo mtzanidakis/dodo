@@ -49,9 +49,13 @@ func (s *Completions) TaskIDs(ctx context.Context, userID string) (map[string]bo
 	return out, rows.Err()
 }
 
+// maxDueRows caps ListByDue so a caller that passes wide or open bounds (e.g.
+// the "all" timeline with no period window) can't load an unbounded result set.
+const maxDueRows = 1000
+
 // ListByDue returns completions whose occurrence due_at falls in [from, to],
 // used by the calendar to place each finished occurrence on its own due day
-// regardless of when it was actually completed.
+// regardless of when it was actually completed. Capped at maxDueRows.
 func (s *Completions) ListByDue(ctx context.Context, userID string, from, to *time.Time) ([]*models.TaskCompletion, error) {
 	conds := []string{"user_id = ?"}
 	args := []any{userID}
@@ -64,7 +68,8 @@ func (s *Completions) ListByDue(ctx context.Context, userID string, from, to *ti
 		args = append(args, formatTime(*to))
 	}
 	query := "SELECT " + completionColumns() + " FROM task_completions WHERE " +
-		strings.Join(conds, " AND ") + " ORDER BY due_at ASC"
+		strings.Join(conds, " AND ") + " ORDER BY due_at ASC LIMIT ?"
+	args = append(args, maxDueRows)
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
@@ -81,13 +86,13 @@ func (s *Completions) ListByDue(ctx context.Context, userID string, from, to *ti
 	return out, rows.Err()
 }
 
-func (s *Completions) List(ctx context.Context, userID string, from, to *time.Time) ([]*models.TaskCompletion, error) {
-	var (
-		conds []string
-		args  []any
-	)
-	conds = append(conds, "user_id = ?")
-	args = append(args, userID)
+// List returns a user's completions ordered newest-first, filtered to
+// [from, to] on completed_at when provided, with cursor pagination mirroring
+// Tasks.List. It returns the page plus an opaque next-page cursor ("" when the
+// page is the last one).
+func (s *Completions) List(ctx context.Context, userID string, from, to *time.Time, limit int, cursor string) ([]*models.TaskCompletion, string, error) {
+	conds := []string{"user_id = ?"}
+	args := []any{userID}
 	if from != nil {
 		conds = append(conds, "completed_at >= ?")
 		args = append(args, formatTime(*from))
@@ -96,20 +101,46 @@ func (s *Completions) List(ctx context.Context, userID string, from, to *time.Ti
 		conds = append(conds, "completed_at <= ?")
 		args = append(args, formatTime(*to))
 	}
+
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+
+	if cursor != "" {
+		curCompleted, curID, ok := decodeCursor(cursor)
+		if ok {
+			// Newest-first order, so the next page holds rows strictly older.
+			conds = append(conds, "(completed_at, id) < (?, ?)")
+			args = append(args, formatTime(curCompleted), curID)
+		}
+	}
+
 	query := "SELECT " + completionColumns() + " FROM task_completions WHERE " +
-		strings.Join(conds, " AND ") + " ORDER BY completed_at DESC"
+		strings.Join(conds, " AND ") + " ORDER BY completed_at DESC, id DESC LIMIT ?"
+	args = append(args, limit+1)
+
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	defer func() { _ = rows.Close() }()
 	var out []*models.TaskCompletion
 	for rows.Next() {
 		c := &models.TaskCompletion{}
 		if err := scanCompletion(rows, c); err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		out = append(out, c)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, "", err
+	}
+
+	nextCursor := ""
+	if len(out) > limit {
+		last := out[limit-1]
+		nextCursor = encodeCursor(last.CompletedAt, last.ID)
+		out = out[:limit]
+	}
+	return out, nextCursor, nil
 }

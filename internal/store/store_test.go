@@ -453,7 +453,7 @@ func TestCompletionsList(t *testing.T) {
 	})
 	from := now.Add(-time.Hour)
 	to := now.Add(time.Hour)
-	list, err := s.Completions.List(ctx, u.ID, &from, &to)
+	list, _, err := s.Completions.List(ctx, u.ID, &from, &to, 50, "")
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
@@ -462,6 +462,67 @@ func TestCompletionsList(t *testing.T) {
 	}
 	if list[0].Priority != models.PriorityHigh {
 		t.Fatalf("priority mismatch: %q", list[0].Priority)
+	}
+}
+
+func TestCompletionsListPagination(t *testing.T) {
+	s, u := newTestStore(t)
+	ctx := context.Background()
+	loc, _ := time.LoadLocation("Europe/Athens")
+	base := time.Date(2026, 7, 11, 10, 0, 0, 0, loc)
+	freq := models.FreqDaily
+	tk := &models.Task{UserID: u.ID, Title: "daily", DueAt: base, Priority: models.PriorityHigh, RecurrenceFreq: &freq, RecurrenceInterval: 1}
+	s.Tasks.Create(ctx, tk)
+
+	advance := func(t *models.Task, _ time.Time) (*models.TaskCompletion, bool, error) {
+		rule := recurrence.Rule{Freq: *t.RecurrenceFreq, Interval: t.RecurrenceInterval}
+		t.DueAt = recurrence.NextOccurrence(rule, t.DueAt, t.DueAt, loc)
+		t.LastNotifiedAt = nil
+		return nil, false, nil
+	}
+
+	// Record 5 completions with distinct, increasing completed_at.
+	const total = 5
+	for i := 0; i < total; i++ {
+		now := base.Add(time.Duration(i) * time.Hour)
+		if _, _, _, err := s.Tasks.Complete(ctx, u.ID, tk.ID, now, advance); err != nil {
+			t.Fatalf("complete %d: %v", i, err)
+		}
+	}
+
+	// Page through at limit=2: every full page must yield a cursor, the last
+	// must not, and the union must be all 5 rows, newest-first with no repeats.
+	var got []*models.TaskCompletion
+	cursor := ""
+	for pages := 0; ; pages++ {
+		if pages > total+1 {
+			t.Fatal("pagination did not terminate")
+		}
+		page, next, err := s.Completions.List(ctx, u.ID, nil, nil, 2, cursor)
+		if err != nil {
+			t.Fatalf("list: %v", err)
+		}
+		got = append(got, page...)
+		if next == "" {
+			break
+		}
+		if len(page) != 2 {
+			t.Fatalf("non-final page should be full, got %d", len(page))
+		}
+		cursor = next
+	}
+	if len(got) != total {
+		t.Fatalf("expected %d completions across pages, got %d", total, len(got))
+	}
+	seen := map[string]bool{}
+	for i, c := range got {
+		if seen[c.ID] {
+			t.Fatalf("duplicate completion %s across pages", c.ID)
+		}
+		seen[c.ID] = true
+		if i > 0 && got[i-1].CompletedAt.Before(c.CompletedAt) {
+			t.Fatalf("page order not newest-first at index %d", i)
+		}
 	}
 }
 

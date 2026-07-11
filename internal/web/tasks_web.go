@@ -138,7 +138,7 @@ func (h *Handler) buildCompletedGroups(r *http.Request, u *models.User, loc *tim
 	}
 	var items []item
 
-	compls, _ := h.deps.Store.Completions.List(r.Context(), u.ID, from, to)
+	compls, _, _ := h.deps.Store.Completions.List(r.Context(), u.ID, from, to, 200, "")
 	for _, c := range compls {
 		items = append(items, item{
 			completedAt: c.CompletedAt,
@@ -197,15 +197,6 @@ func (h *Handler) buildCompletedGroups(r *http.Request, u *models.User, loc *tim
 func (h *Handler) buildAllGroups(r *http.Request, u *models.User, loc *time.Location, now time.Time, period string) []dayGroup {
 	lang := string(u.Locale)
 	from, to := models.PeriodBounds(period, now)
-	inPeriod := func(due time.Time) bool {
-		if from != nil && due.Before(*from) {
-			return false
-		}
-		if to != nil && due.After(*to) {
-			return false
-		}
-		return true
-	}
 
 	type item struct {
 		view taskView
@@ -218,11 +209,10 @@ func (h *Handler) buildAllGroups(r *http.Request, u *models.User, loc *time.Loca
 		items = append(items, item{view: h.toTaskView(t, loc, lang, now), due: t.DueAt})
 	}
 
-	compls, _ := h.deps.Store.Completions.List(r.Context(), u.ID, nil, nil)
+	// Filter completed occurrences by their due date in SQL (ListByDue) rather
+	// than loading every completion and windowing in Go.
+	compls, _ := h.deps.Store.Completions.ListByDue(r.Context(), u.ID, from, to)
 	for _, c := range compls {
-		if !inPeriod(c.DueAt) {
-			continue
-		}
 		items = append(items, item{
 			due: c.DueAt,
 			view: taskView{
