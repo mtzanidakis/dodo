@@ -2,19 +2,29 @@
 <div x-data="{ showForm: false }">
   <div class="toolbar">
     <div class="segmented">
-      <a href="/?view=list&filter={{.Filter}}" class="{{if ne .View "calendar"}}active{{end}}">{{t .Lang "view.list"}}</a>
+      <a href="/?view=list&filter={{.Filter}}&period={{.Period}}" class="{{if ne .View "calendar"}}active{{end}}">{{t .Lang "view.list"}}</a>
       <a href="/?view=calendar" class="{{if eq .View "calendar"}}active{{end}}">{{t .Lang "view.calendar"}}</a>
     </div>
     {{if ne .View "calendar"}}
     <div class="segmented">
-      <a href="/?filter=pending" class="{{if eq .Filter "pending"}}active{{end}}">{{t .Lang "filter.pending"}}</a>
-      <a href="/?filter=completed" class="{{if eq .Filter "completed"}}active{{end}}">{{t .Lang "filter.completed"}}</a>
-      <a href="/?filter=all" class="{{if eq .Filter "all"}}active{{end}}">{{t .Lang "filter.all"}}</a>
+      <a href="/?filter=pending&period={{.Period}}" class="{{if eq .Filter "pending"}}active{{end}}">{{t .Lang "filter.pending"}}</a>
+      <a href="/?filter=completed&period={{.Period}}" class="{{if eq .Filter "completed"}}active{{end}}">{{t .Lang "filter.completed"}}</a>
+      <a href="/?filter=all&period={{.Period}}" class="{{if eq .Filter "all"}}active{{end}}">{{t .Lang "filter.all"}}</a>
     </div>
     {{end}}
     <div class="spacer"></div>
     <button class="btn btn-primary" @click="showForm = !showForm">+ {{t .Lang "action.new_task"}}</button>
   </div>
+  {{if ne .View "calendar"}}
+  <div class="toolbar subfilter">
+    <div class="segmented">
+      <a href="/?filter={{.Filter}}&period=all" class="{{if eq .Period "all"}}active{{end}}">{{t .Lang "period.all"}}</a>
+      <a href="/?filter={{.Filter}}&period=today" class="{{if eq .Period "today"}}active{{end}}">{{t .Lang "period.today"}}</a>
+      <a href="/?filter={{.Filter}}&period=week" class="{{if eq .Period "week"}}active{{end}}">{{t .Lang "period.week"}}</a>
+      <a href="/?filter={{.Filter}}&period=month" class="{{if eq .Period "month"}}active{{end}}">{{t .Lang "period.month"}}</a>
+    </div>
+  </div>
+  {{end}}
 
   <div class="card panel" x-show="showForm" x-cloak>
     <form method="POST" action="/ui/tasks">

@@ -67,6 +67,62 @@ func TestHomeRendersTasks(t *testing.T) {
 	}
 }
 
+func TestPeriodFilterScopesPendingToToday(t *testing.T) {
+	mux, st, u, session := newWebEnv(t)
+	loc, _ := time.LoadLocation(u.Timezone)
+	now := time.Now().In(loc)
+	todayDue := time.Date(now.Year(), now.Month(), now.Day(), 18, 0, 0, 0, loc)
+	nextWeekDue := todayDue.AddDate(0, 0, 8)
+	for _, tk := range []*models.Task{
+		{UserID: u.ID, Title: "DueToday", Priority: models.PriorityNormal, DueAt: todayDue.UTC()},
+		{UserID: u.ID, Title: "DueNextWeek", Priority: models.PriorityNormal, DueAt: nextWeekDue.UTC()},
+	} {
+		if err := st.Tasks.Create(context.Background(), tk); err != nil {
+			t.Fatalf("create: %v", err)
+		}
+	}
+	req := httptest.NewRequest(http.MethodGet, "/?filter=pending&period=today", nil)
+	withSession(req, session)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	body := rec.Body.String()
+	if !strings.Contains(body, "DueToday") {
+		t.Fatalf("today period should include today's pending task")
+	}
+	if strings.Contains(body, "DueNextWeek") {
+		t.Fatalf("today period should exclude next week's task")
+	}
+}
+
+func TestCompletedThisWeekCombinesAxes(t *testing.T) {
+	mux, st, u, session := newWebEnv(t)
+	loc, _ := time.LoadLocation(u.Timezone)
+	now := time.Now().In(loc)
+	// Two tasks due long ago; complete one now (this week), leave one pending.
+	old := time.Date(now.Year(), now.Month(), now.Day(), 12, 0, 0, 0, loc).AddDate(0, 0, -40)
+	doneTask := &models.Task{UserID: u.ID, Title: "FinishedThisWeek", Priority: models.PriorityNormal, DueAt: old.UTC()}
+	pendingTask := &models.Task{UserID: u.ID, Title: "StillPending", Priority: models.PriorityNormal, DueAt: old.UTC()}
+	for _, tk := range []*models.Task{doneTask, pendingTask} {
+		if err := st.Tasks.Create(context.Background(), tk); err != nil {
+			t.Fatalf("create: %v", err)
+		}
+	}
+	if _, _, _, err := st.Tasks.Complete(context.Background(), u.ID, doneTask.ID, time.Now().UTC(), nil); err != nil {
+		t.Fatalf("complete: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/?filter=completed&period=week", nil)
+	withSession(req, session)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	body := rec.Body.String()
+	if !strings.Contains(body, "FinishedThisWeek") {
+		t.Fatalf("completed+week should show a task completed this week")
+	}
+	if strings.Contains(body, "StillPending") {
+		t.Fatalf("completed+week should not show a pending task")
+	}
+}
+
 func TestCalendarRenders(t *testing.T) {
 	mux, _, _, session := newWebEnv(t)
 	req := httptest.NewRequest(http.MethodGet, "/?view=calendar", nil)

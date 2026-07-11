@@ -92,6 +92,7 @@ type pageData struct {
 	// tasks page
 	View     string
 	Filter   string
+	Period   string
 	Groups   []dayGroup
 	Calendar *calendarView
 	Freqs    []freqOption

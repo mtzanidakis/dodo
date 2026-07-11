@@ -161,6 +161,7 @@ main { max-width: 880px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
 .segmented a:hover { color: var(--fg); text-decoration: none; }
 .segmented a.active { background: var(--bg-elev); color: var(--fg); box-shadow: var(--shadow); }
 .toolbar .spacer { margin-left: auto; }
+.toolbar.subfilter { margin-top: -0.6rem; }
 
 /* ---------- buttons ---------- */
 .btn {
