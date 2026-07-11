@@ -166,6 +166,15 @@ func TestCompletedShowsEachRecurringOccurrence(t *testing.T) {
 	if got := strings.Count(rec.Body.String(), ">PayRent<"); got != 1 {
 		t.Fatalf("pending view should show the open series once, got %d", got)
 	}
+
+	// All view: the open occurrence plus the three completed occurrences.
+	req = httptest.NewRequest(http.MethodGet, "/?filter=all&period=all", nil)
+	withSession(req, session)
+	rec = httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if got := strings.Count(rec.Body.String(), ">PayRent<"); got != 4 {
+		t.Fatalf("all view should show 1 pending + 3 completed occurrences, got %d", got)
+	}
 }
 
 func TestCalendarRenders(t *testing.T) {
