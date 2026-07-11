@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/mtzanidakis/dodo/internal/auth"
@@ -17,7 +18,14 @@ func (s *Server) handleListCompletions(w http.ResponseWriter, r *http.Request) {
 	if v := r.URL.Query().Get("to"); v != "" {
 		toPtr = ptrTime(parseDueAt(v, loc))
 	}
-	completions, err := s.store.Completions.List(r.Context(), u.ID, fromPtr, toPtr)
+	limit := 0
+	if v := r.URL.Query().Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			limit = n
+		}
+	}
+	cursor := r.URL.Query().Get("cursor")
+	completions, next, err := s.store.Completions.List(r.Context(), u.ID, fromPtr, toPtr, limit, cursor)
 	if err != nil {
 		writeError(w, err)
 		return
@@ -26,5 +34,9 @@ func (s *Server) handleListCompletions(w http.ResponseWriter, r *http.Request) {
 	for _, c := range completions {
 		items = append(items, toCompletionDTO(c))
 	}
-	writeJSON(w, http.StatusOK, listEnvelope[completionDTO]{Items: items})
+	resp := listEnvelope[completionDTO]{Items: items}
+	if next != "" {
+		resp.Cursor = &next
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
