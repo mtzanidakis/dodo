@@ -6,6 +6,7 @@ import (
 
 	"github.com/mtzanidakis/dodo/internal/admin"
 	"github.com/mtzanidakis/dodo/internal/api"
+	"github.com/mtzanidakis/dodo/internal/backup"
 	"github.com/mtzanidakis/dodo/internal/config"
 )
 
@@ -29,6 +30,8 @@ func main() {
 			}
 		case "admin":
 			os.Exit(admin.Run(os.Args[2:], version, commit))
+		case "backup":
+			os.Exit(backup.Run(os.Args[2:]))
 		case "-h", "--help":
 			fmt.Print(usage)
 		default:
@@ -47,6 +50,7 @@ const usage = `dodo - todo service
 Usage:
   dodo serve   Run the HTTP API server + scheduler + telegram pollers
   dodo admin   Manage users and api tokens (direct DB access)
+  dodo backup  Online backup of the database (-dump <dest>)
 
 Flags:
   -h, --help   Show this help
