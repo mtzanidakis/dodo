@@ -14,6 +14,9 @@ func main() {
 	url := flag.String("url", "", "API base URL")
 	token := flag.String("token", "", "API bearer token")
 	pretty := flag.Bool("pretty", false, "pretty human-readable output")
+	// --raw is the default (machine-readable JSON); accepted as a no-op so
+	// agents can pass it explicitly without a "flag not defined" error.
+	_ = flag.Bool("raw", false, "raw JSON output (default)")
 	help := flag.Bool("h", false, "show help")
 	flag.Usage = usageFn
 	flag.Parse()
@@ -56,5 +59,6 @@ Commands:
 Flags:
   --url, --token, --config path to config.json (default ~/.config/dodo/config.json)
   --pretty      human-readable output (default JSON)
+  --raw         machine-readable JSON output (default)
 `)
 }
