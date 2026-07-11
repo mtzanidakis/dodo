@@ -146,8 +146,12 @@ func (m *Middleware) CSRF(next http.Handler) http.Handler {
 			csrfReject(w, r)
 			return
 		}
-		header := r.Header.Get("X-CSRF-Token")
-		if header == "" || !safeEqual(header, cookie.Value) {
+		token := r.Header.Get("X-CSRF-Token")
+		if token == "" {
+			// Fallback for plain HTML form posts (htmx sends the header).
+			token = r.PostFormValue("_csrf")
+		}
+		if token == "" || !safeEqual(token, cookie.Value) {
 			csrfReject(w, r)
 			return
 		}
