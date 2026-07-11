@@ -14,11 +14,6 @@
       <div class="form-row">
         <label class="field"><span>{{t .Lang "field.timezone"}}</span>
           <input name="timezone" value="{{.User.Timezone}}"></label>
-        <label class="field"><span>{{t .Lang "field.locale"}}</span>
-          <select name="locale">
-            <option value="en" {{if eq (printf "%s" .User.Locale) "en"}}selected{{end}}>English</option>
-            <option value="el" {{if eq (printf "%s" .User.Locale) "el"}}selected{{end}}>Ελληνικά</option>
-          </select></label>
         <label class="field"><span>{{t .Lang "field.theme"}}</span>
           <select name="theme">
             <option value="system" {{if eq (printf "%s" .User.Theme) "system"}}selected{{end}}>{{t .Lang "theme.system"}}</option>

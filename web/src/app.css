@@ -133,6 +133,30 @@ h2 { font-size: 1.1rem; margin: 0 0 0.75rem; }
 .topbar nav a.active { color: var(--fg); background: var(--accent-soft); }
 .topbar .who { color: var(--fg-muted); font-size: 0.85rem; }
 
+/* ---------- theme toggle & language ---------- */
+.theme-toggle {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.theme-toggle button {
+  border: none;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+  font-size: 0.95rem;
+  line-height: 1;
+  padding: 0.25rem 0.45rem;
+  border-radius: 5px;
+}
+.theme-toggle button:hover { color: var(--fg); }
+.theme-toggle button.active { background: var(--bg-elev); color: var(--fg); box-shadow: var(--shadow); }
+.lang-form { margin: 0; display: inline-flex; }
+.lang-form select { width: auto; padding: 0.3rem 0.4rem; font-weight: 600; }
+
 /* ---------- user menu ---------- */
 .usermenu { position: relative; }
 .usermenu > summary {

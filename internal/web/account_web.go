@@ -2,6 +2,7 @@ package web
 
 import (
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -9,6 +10,35 @@ import (
 	"github.com/mtzanidakis/dodo/internal/i18n"
 	"github.com/mtzanidakis/dodo/internal/models"
 )
+
+// handleSetLocale switches the UI language from the topbar selector and returns
+// to the page the request came from.
+func (h *Handler) handleSetLocale(w http.ResponseWriter, r *http.Request) {
+	u := auth.UserFromContext(r.Context())
+	if loc := r.FormValue("locale"); loc == "en" || loc == "el" {
+		u.Locale = models.Locale(loc)
+		_ = h.deps.Store.Users.Update(r.Context(), u)
+	}
+	http.Redirect(w, r, sameOriginRef(r), http.StatusSeeOther)
+}
+
+// sameOriginRef returns the path+query of the request's Referer (dropping the
+// host to avoid open redirects); falls back to "/".
+func sameOriginRef(r *http.Request) string {
+	ref := r.Referer()
+	if ref == "" {
+		return "/"
+	}
+	parsed, err := url.Parse(ref)
+	if err != nil || parsed.Path == "" {
+		return "/"
+	}
+	target := parsed.Path
+	if parsed.RawQuery != "" {
+		target += "?" + parsed.RawQuery
+	}
+	return target
+}
 
 type tokenView struct {
 	ID         string

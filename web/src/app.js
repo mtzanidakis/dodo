@@ -22,28 +22,40 @@
     }
   }
 
+  function markActiveTheme(theme) {
+    document.querySelectorAll("[data-set-theme]").forEach(function (el) {
+      el.classList.toggle("active", el.getAttribute("data-set-theme") === theme);
+    });
+  }
+
   function setTheme(theme) {
     try {
       localStorage.setItem(THEME_KEY, theme);
     } catch (e) {}
     applyTheme(theme);
-    document.querySelectorAll("[data-theme-select]").forEach(function (el) {
-      el.value = theme;
-    });
+    markActiveTheme(theme);
   }
 
-  // A client-side preference (localStorage) overrides the server-rendered
-  // class so switching feels instant and survives navigation.
+  // The current theme is the client-side preference (localStorage), else the
+  // server-rendered <html> class, else "system". A client preference overrides
+  // the server so switching feels instant and survives navigation.
+  function currentTheme() {
+    var pref = storedTheme();
+    if (pref) return pref;
+    if (root.classList.contains("dark")) return "dark";
+    if (root.classList.contains("light")) return "light";
+    return "system";
+  }
+
   var pref = storedTheme();
   if (pref) applyTheme(pref);
+  markActiveTheme(currentTheme());
 
   window.dodoSetTheme = setTheme;
 
-  document.addEventListener("change", function (e) {
-    var el = e.target;
-    if (el && el.hasAttribute && el.hasAttribute("data-theme-select")) {
-      setTheme(el.value);
-    }
+  document.addEventListener("click", function (e) {
+    var el = e.target.closest ? e.target.closest("[data-set-theme]") : null;
+    if (el) setTheme(el.getAttribute("data-set-theme"));
   });
 
   // Close the user dropdown when clicking outside it.
@@ -145,7 +157,9 @@
     backoff = Math.min(backoff * 2, 30000);
   }
 
-  if (document.getElementById("ws-dot")) {
+  // Connect the live-updates websocket on authenticated pages (the user menu
+  // only renders when logged in).
+  if (document.querySelector(".usermenu")) {
     connectWS();
   }
 })();

@@ -186,6 +186,8 @@ func (h *Handler) Mount(mux *http.ServeMux) {
 	mux.Handle("POST /account/telegram/clear", post(h.handleAccountTelegramClear))
 	mux.Handle("POST /account/telegram/test", post(h.handleAccountTelegramTest))
 
+	mux.Handle("POST /ui/locale", post(h.handleSetLocale))
+
 	mux.Handle("GET /tokens", sess(h.handleTokens))
 	mux.Handle("POST /ui/tokens", post(h.handleCreateToken))
 	mux.Handle("POST /ui/tokens/{id}/delete", post(h.handleRevokeToken))
