@@ -1,24 +1,37 @@
 {{define "page"}}<!doctype html>
-<html lang="{{.Lang}}">
+<html lang="{{.Lang}}"{{if .ThemeClass}} class="{{.ThemeClass}}"{{end}}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="csrf-token" content="{{.CSRF}}">
 <meta name="color-scheme" content="{{.ColorScheme}}">
-<title>{{.Title}} - dodo</title>
+<title>{{.Title}} · dodo</title>
 <link rel="stylesheet" href="/static/{{.AssetVersion}}/app.css">
 <script src="/static/{{.AssetVersion}}/vendor.js" defer></script>
+<script src="/static/{{.AssetVersion}}/app.js" defer></script>
 </head>
 <body hx-headers='{"X-CSRF-Token":"{{.CSRF}}"}'>
+{{if .User}}
 <header class="topbar">
-  <strong>dodo</strong>
-  {{if .User}}<span>{{.User.Email}}</span>{{end}}
-  <nav style="margin-left:auto;display:flex;gap:0.5rem">
-    {{if .User}}<a class="btn" href="/">Tasks</a> <a class="btn" href="/account">Account</a> <a class="btn" href="/tokens">Tokens</a>{{end}}
+  <a class="brand" href="/"><span class="dot"></span>dodo</a>
+  <span class="who">{{.User.Email}}</span>
+  <nav>
+    <a href="/" class="{{if eq .Nav "tasks"}}active{{end}}">{{t .Lang "nav.tasks"}}</a>
+    <a href="/tokens" class="{{if eq .Nav "tokens"}}active{{end}}">{{t .Lang "nav.tokens"}}</a>
+    <a href="/account" class="{{if eq .Nav "account"}}active{{end}}">{{t .Lang "nav.account"}}</a>
+    <select data-theme-select title="theme" class="btn btn-sm" style="width:auto">
+      <option value="system">{{t .Lang "theme.system"}}</option>
+      <option value="light">{{t .Lang "theme.light"}}</option>
+      <option value="dark">{{t .Lang "theme.dark"}}</option>
+    </select>
+    <span id="ws-dot" class="ws-dot" title="live"></span>
+    <a href="/logout" class="btn btn-sm btn-ghost">{{t .Lang "nav.logout"}}</a>
   </nav>
 </header>
+{{end}}
 <main>
 {{template "content" .}}
 </main>
+<div id="toasts"></div>
 </body>
 </html>{{end}}

@@ -1,11 +1,14 @@
 {{define "content"}}
-<section style="max-width:24rem;margin:4rem auto">
-  <h1>Sign in</h1>
-  {{if .Error}}<p style="color:#dc2626">{{.Error}}</p>{{end}}
+<section class="card panel" style="max-width:22rem;margin:8vh auto">
+  <div class="brand" style="font-size:1.4rem;margin-bottom:0.25rem"><span class="dot"></span>dodo</div>
+  <p class="hint" style="margin-top:0">{{t .Lang "app.tagline"}}</p>
+  {{if .Error}}<div class="alert alert-error">{{.Error}}</div>{{end}}
   <form method="POST" action="/login">
-    <label>Email<br><input name="email" type="email" required></label><br><br>
-    <label>Password<br><input name="password" type="password" required></label><br><br>
-    <button class="btn" type="submit">Sign in</button>
+    <label class="field"><span>{{t .Lang "field.email"}}</span>
+      <input name="email" type="email" required autofocus autocomplete="username"></label>
+    <label class="field"><span>{{t .Lang "field.password"}}</span>
+      <input name="password" type="password" required autocomplete="current-password"></label>
+    <div class="form-actions"><button class="btn btn-primary" type="submit" style="width:100%">{{t .Lang "login.submit"}}</button></div>
   </form>
 </section>
 {{end}}
