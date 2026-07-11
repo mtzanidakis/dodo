@@ -78,10 +78,13 @@ type stubTG struct{}
 
 func (stubTG) ValidateToken(context.Context, string) (string, error)  { return "bot", nil }
 func (stubTG) SendTest(context.Context, string, string, string) error { return nil }
-func (stubTG) StartForUser(context.Context, string) error             { return nil }
-func (stubTG) StopForUser(string) error                               { return nil }
-func (stubTG) StartAll(context.Context) error                         { return nil }
-func (stubTG) StopAll()                                               {}
+func (stubTG) SendReminder(context.Context, string, string, string, string, string) error {
+	return nil
+}
+func (stubTG) StartForUser(context.Context, string) error { return nil }
+func (stubTG) StopForUser(string) error                   { return nil }
+func (stubTG) StartAll(context.Context) error             { return nil }
+func (stubTG) StopAll()                                   {}
 
 func TestCLIMe(t *testing.T) {
 	e := newCLIEnv(t)

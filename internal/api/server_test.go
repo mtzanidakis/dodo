@@ -25,10 +25,13 @@ type stubTelegram struct{}
 
 func (stubTelegram) ValidateToken(context.Context, string) (string, error)  { return "botname", nil }
 func (stubTelegram) SendTest(context.Context, string, string, string) error { return nil }
-func (stubTelegram) StartForUser(context.Context, string) error             { return nil }
-func (stubTelegram) StopForUser(string) error                               { return nil }
-func (stubTelegram) StartAll(context.Context) error                         { return nil }
-func (stubTelegram) StopAll()                                               {}
+func (stubTelegram) SendReminder(context.Context, string, string, string, string, string) error {
+	return nil
+}
+func (stubTelegram) StartForUser(context.Context, string) error { return nil }
+func (stubTelegram) StopForUser(string) error                   { return nil }
+func (stubTelegram) StartAll(context.Context) error             { return nil }
+func (stubTelegram) StopAll()                                   {}
 
 func testConfig() config.Config {
 	return config.Config{EncryptionKey: testKey()}

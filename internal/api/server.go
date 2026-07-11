@@ -32,6 +32,7 @@ type Server struct {
 type TelegramService interface {
 	ValidateToken(ctx context.Context, botToken string) (username string, err error)
 	SendTest(ctx context.Context, userID, chatID, text string) error
+	SendReminder(ctx context.Context, userID, chatID, text, taskID, buttonLabel string) error
 	StartForUser(ctx context.Context, userID string) error
 	StopForUser(userID string) error
 	StartAll(ctx context.Context) error

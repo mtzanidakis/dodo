@@ -50,6 +50,24 @@ func (s *Service) SendTest(ctx context.Context, userID, chatID, text string) err
 	return client.SendMessage(ctx, chatID, text)
 }
 
+// SendReminder sends a due-task reminder carrying an inline "Complete" button
+// whose callback data completes the task straight from Telegram.
+func (s *Service) SendReminder(ctx context.Context, userID, chatID, text, taskID, buttonLabel string) error {
+	client, err := s.pollers.registry.GetOrCreate(ctx, userID)
+	if err != nil {
+		return err
+	}
+	return client.SendMessageWithMarkup(ctx, chatID, text, completeKeyboard(taskID, buttonLabel))
+}
+
+func completeKeyboard(taskID, label string) *InlineKeyboardMarkup {
+	return &InlineKeyboardMarkup{
+		InlineKeyboard: [][]InlineKeyboardButton{{
+			{Text: label, CallbackData: "complete:" + taskID},
+		}},
+	}
+}
+
 func (s *Service) StartForUser(ctx context.Context, userID string) error {
 	return s.pollers.StartForUser(ctx, userID)
 }
