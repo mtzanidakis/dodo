@@ -65,6 +65,11 @@ export PATH="$HOME/.local/bin:$PATH"   # add to ~/.bashrc / ~/.zshrc to persist
 
 (If `gh` is available, `gh release download --repo mtzanidakis/dodo --pattern 'dodo-dodo-cli_*_'"${os}_${arch}"'.tar.gz'` is an alternative to the curl step.)
 
+Once installed, `dodo-cli` can update itself: `dodo-cli upgrade` checks the
+latest release and, if it is newer than the installed build, downloads the
+matching archive, verifies its checksum, and replaces the binary in place.
+`dodo-cli version` prints the installed version.
+
 ## 2. Configure
 
 `dodo-cli` needs the API base URL and a bearer token. It reads
@@ -75,14 +80,20 @@ it. It never reads environment variables.
 {
   "url": "http://localhost:8080",
   "token": "dodo_xxxxxxxxxxxx",
-  "log_level": "info"
+  "log_level": "info",
+  "timezone": "Europe/Athens"
 }
 ```
+
+`timezone` is optional (an IANA name, or `UTC`). It overrides the display zone
+for timestamps; when omitted, `dodo-cli` uses the account's profile timezone
+from the server. Times in the JSON output are rendered in that zone as RFC3339
+with a local offset (e.g. `2026-07-11T20:00:00+03:00`), not UTC `Z`.
 
 Write it once with:
 
 ```bash
-dodo-cli init --url http://<host>:<port> --token dodo_xxxxxxxxxxxx
+dodo-cli init --url http://<host>:<port> --token dodo_xxxxxxxxxxxx [--timezone Europe/Athens]
 ```
 
 Getting a token (ask the user which applies):
@@ -111,6 +122,8 @@ dodo-cli tasks snooze <id> --until <when>
 dodo-cli tasks delete <id>
 dodo-cli completions list [--from=] [--to=]
 dodo-cli tokens list | tokens create --name <n> | tokens revoke <id>
+dodo-cli version           # print the installed version
+dodo-cli upgrade           # self-update to the latest release
 ```
 
 Time values (`--due`, `--until`, `--from`, `--to`) accept RFC3339

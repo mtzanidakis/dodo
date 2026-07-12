@@ -6,8 +6,12 @@ import (
 	"os"
 
 	"github.com/mtzanidakis/dodo/internal/clientconfig"
+	"github.com/mtzanidakis/dodo/internal/selfupdate"
 	"github.com/mtzanidakis/dodo/internal/tui"
 )
+
+// version is injected at build time via -ldflags "-X main.version=...".
+var version = "dev"
 
 func main() {
 	configPath := flag.String("config", "", "path to config.json")
@@ -19,6 +23,8 @@ func main() {
 
 Usage:
   dodo-tui [--url <api>] [--token <token>] [--config <path>]
+  dodo-tui version    Print the installed version
+  dodo-tui upgrade    Update to the latest release if a newer one exists
 
 Flags:
   --url, --token, --config path to config.json (default ~/.config/dodo/config.json)
@@ -27,6 +33,18 @@ Flags:
 	flag.Parse()
 	if *help {
 		flag.Usage()
+		return
+	}
+
+	switch flag.Arg(0) {
+	case "version":
+		fmt.Println(selfupdate.DisplayVersion(version))
+		return
+	case "upgrade":
+		if err := selfupdate.Run(os.Stderr, selfupdate.Options{CurrentVersion: version, BinaryName: "dodo-tui"}); err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			os.Exit(1)
+		}
 		return
 	}
 	cfg, err := clientconfig.Load(clientconfig.Flags{ConfigPath: *configPath, URL: *url, Token: *token})

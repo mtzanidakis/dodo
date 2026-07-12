@@ -175,6 +175,24 @@ path. Equivalent with the `sqlite3` CLI, if you have it:
 sqlite3 /data/dodo.sqlite ".backup /data/backup.sqlite"
 ```
 
+## Upgrading the clients
+
+`dodo-cli` and `dodo-tui` can update themselves in place from the latest GitHub
+release:
+
+```
+dodo-cli version    # print the installed version
+dodo-cli upgrade    # download & replace with the latest release, if newer
+dodo-tui upgrade
+```
+
+`upgrade` compares the installed version with the latest release, and when a
+newer one exists it downloads the matching archive for your OS/arch, verifies
+its checksum, and atomically replaces the running binary (so the install
+directory must be writable). Released binaries carry their version; a
+locally-built binary reports its `git describe` string and only upgrades to a
+strictly newer release.
+
 ## Development
 
 ```

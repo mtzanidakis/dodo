@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/mtzanidakis/dodo/internal/clientconfig"
+	"github.com/mtzanidakis/dodo/internal/selfupdate"
 )
 
 const (
@@ -23,13 +24,14 @@ const (
 )
 
 type App struct {
-	cfg    clientconfig.ClientConfig
-	pretty bool
-	Out    io.Writer
-	Err    io.Writer
-	out    io.Writer
-	err    io.Writer
-	client *http.Client
+	cfg     clientconfig.ClientConfig
+	pretty  bool
+	Version string // installed version, injected from main; used by `upgrade`
+	Out     io.Writer
+	Err     io.Writer
+	out     io.Writer
+	err     io.Writer
+	client  *http.Client
 
 	loc         *time.Location // display zone for timestamps; resolved lazily
 	locResolved bool
@@ -74,6 +76,11 @@ func (a *App) Run(args []string) int {
 		return a.cmdCompletions(args[1:])
 	case "tokens":
 		return a.cmdTokens(args[1:])
+	case "upgrade":
+		return a.cmdUpgrade()
+	case "version":
+		a.emitJSON(map[string]any{"version": selfupdate.DisplayVersion(a.Version)})
+		return ExitOK
 	case "-h", "--help", "help":
 		a.usage()
 		return ExitOK
@@ -99,6 +106,8 @@ Commands:
   tasks delete <id>
   completions list [--from] [--to]
   tokens list | tokens create --name | tokens revoke <id>
+  version
+  upgrade
 
 Global flags: --pretty, --url, --token, --config
 Exit codes: 0 ok, 1 error, 2 usage, 4 not found, 5 auth
