@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/mtzanidakis/dodo/internal/clientconfig"
+	"github.com/mtzanidakis/dodo/internal/selfupdate"
 )
 
 // normalizeDue converts a user-supplied due string (RFC3339, "2006-01-02T15:04",
@@ -65,6 +66,20 @@ func (a *App) cmdMe() int {
 		return failFromStatus(status)
 	}
 	a.emitRaw(b)
+	return ExitOK
+}
+
+// cmdUpgrade replaces this binary with the latest release when a newer one is
+// published. Progress is written to stderr so stdout stays clean for scripts.
+func (a *App) cmdUpgrade() int {
+	err := selfupdate.Run(a.err, selfupdate.Options{
+		CurrentVersion: a.Version,
+		BinaryName:     "dodo-cli",
+	})
+	if err != nil {
+		a.eprintln("error:", err)
+		return ExitError
+	}
 	return ExitOK
 }
 

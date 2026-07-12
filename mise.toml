@@ -11,10 +11,10 @@ depends = ["web:build"]
 run = "go build ./cmd/dodo"
 
 [tasks.build-cli]
-run = "go build ./cmd/dodo-cli"
+run = "go build -ldflags \"-X main.version=$(git describe --tags --always --dirty 2>/dev/null || echo dev)\" ./cmd/dodo-cli"
 
 [tasks.build-tui]
-run = "go build ./cmd/dodo-tui"
+run = "go build -ldflags \"-X main.version=$(git describe --tags --always --dirty 2>/dev/null || echo dev)\" ./cmd/dodo-tui"
 
 [tasks.build-all]
 depends = ["build-server", "build-cli", "build-tui"]

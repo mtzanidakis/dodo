@@ -9,6 +9,9 @@ import (
 	"github.com/mtzanidakis/dodo/internal/clientconfig"
 )
 
+// version is injected at build time via -ldflags "-X main.version=...".
+var version = "dev"
+
 func main() {
 	configPath := flag.String("config", "", "path to config.json")
 	url := flag.String("url", "", "API base URL")
@@ -32,6 +35,7 @@ func main() {
 		os.Exit(1)
 	}
 	app := cli.New(cfg, *pretty)
+	app.Version = version
 	os.Exit(app.Run(flag.Args()))
 }
 
@@ -55,6 +59,8 @@ Commands:
   tokens list
   tokens create --name <name>
   tokens revoke <id>
+  version           Print the installed version
+  upgrade           Update to the latest release if a newer one exists
 
 Flags:
   --url, --token, --config path to config.json (default ~/.config/dodo/config.json)

@@ -11,6 +11,9 @@ permissions:
 
 jobs:
   commitlint:
+    # Dependabot commits carry long release-note bodies that trip
+    # body-max-line-length; its messages are machine-generated, so skip them.
+    if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
