@@ -1,0 +1,13 @@
+{{define "tasklist"}}
+{{range .Groups}}
+<div class="day-group">
+  <div class="day-heading">{{.Label}}</div>
+  {{range .Tasks}}{{template "row" (dict "Task" . "Lang" $.Lang "CSRF" $.CSRF)}}{{end}}
+</div>
+{{end}}
+{{if .NextCursor}}
+<button class="btn btn-ghost load-more"
+        hx-get="/ui/tasks/page?filter={{.Filter}}&period={{.Period}}&cursor={{.NextCursor | urlquery}}"
+        hx-target="this" hx-swap="outerHTML">{{t .Lang "action.load_more"}}</button>
+{{end}}
+{{end}}

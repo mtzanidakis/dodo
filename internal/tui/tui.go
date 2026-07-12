@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -29,7 +30,8 @@ type taskItem struct {
 }
 
 type listResp struct {
-	Items []taskItem `json:"items"`
+	Items  []taskItem `json:"items"`
+	Cursor *string    `json:"cursor,omitempty"`
 }
 
 type Client struct {
@@ -78,28 +80,44 @@ func (c *Client) ListTasks() ([]taskItem, error) {
 	return c.ListTasksFilter("pending", "all")
 }
 
-// ListTasksFilter fetches tasks for the given status
+// ListTasksFilter fetches the first page of tasks for the given status
 // (pending|completed|all) and time period (all|today|week|month), which
 // combine as independent filters.
 func (c *Client) ListTasksFilter(filter, period string) ([]taskItem, error) {
+	items, _, err := c.ListTasksPage(filter, period, "")
+	return items, err
+}
+
+// ListTasksPage fetches one page (up to 50) of tasks starting after cursor
+// ("" for the first page) and returns the page plus the next-page cursor
+// ("" when there are no more rows).
+func (c *Client) ListTasksPage(filter, period, cursor string) ([]taskItem, string, error) {
 	if filter == "" {
 		filter = "pending"
 	}
 	if period == "" {
 		period = "all"
 	}
-	status, b, err := c.request("GET", "/api/v1/tasks?filter="+filter+"&period="+period+"&limit=200", nil)
+	path := "/api/v1/tasks?filter=" + url.QueryEscape(filter) + "&period=" + url.QueryEscape(period) + "&limit=25"
+	if cursor != "" {
+		path += "&cursor=" + url.QueryEscape(cursor)
+	}
+	status, b, err := c.request("GET", path, nil)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if err := checkStatus(status, b); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	var r listResp
 	if err := json.Unmarshal(b, &r); err != nil {
-		return nil, fmt.Errorf("decode tasks: %w", err)
+		return nil, "", fmt.Errorf("decode tasks: %w", err)
 	}
-	return r.Items, nil
+	next := ""
+	if r.Cursor != nil {
+		next = *r.Cursor
+	}
+	return r.Items, next, nil
 }
 
 func (c *Client) Complete(id string) error {

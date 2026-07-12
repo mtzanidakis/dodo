@@ -12,6 +12,7 @@
   "action.copy": "Copy",
   "action.revoke": "Revoke",
   "action.new_task": "New task",
+  "action.load_more": "Load more",
   "action.save": "Save",
   "action.cancel": "Cancel",
   "confirm.delete": "Delete this task?",

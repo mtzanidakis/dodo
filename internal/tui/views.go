@@ -65,6 +65,9 @@ func (m model) listView() string {
 			}
 			b.WriteString("\n")
 		}
+		if m.nextCursor != "" {
+			b.WriteString(hintStyle.Render("  ↓ more… (scroll down to load)") + "\n")
+		}
 	}
 	if m.err != "" {
 		b.WriteString("\n" + errStyle.Render("error: "+m.err) + "\n")
@@ -75,7 +78,11 @@ func (m model) listView() string {
 }
 
 func (m model) statusBar() string {
-	return hintStyle.Render(fmt.Sprintf("status: %s   period: %s   tasks: %d", m.filter, m.period, len(m.items)))
+	count := fmt.Sprintf("%d", len(m.items))
+	if m.nextCursor != "" {
+		count += "+"
+	}
+	return hintStyle.Render(fmt.Sprintf("status: %s   period: %s   tasks: %s", m.filter, m.period, count))
 }
 
 func (m model) formView() string {
