@@ -160,15 +160,44 @@ func (c *Client) Delete(id string) error {
 	return checkStatus(status, b)
 }
 
-func (c *Client) Me() (string, error) {
+type profile struct {
+	Email    string
+	Timezone string
+}
+
+// Profile fetches the caller's account, returning the fields the TUI needs
+// (email for the header, timezone for rendering times).
+func (c *Client) Profile() (profile, error) {
 	_, b, err := c.request("GET", "/api/v1/me", nil)
 	if err != nil {
-		return "", err
+		return profile{}, err
 	}
-	var m map[string]any
+	var m struct {
+		Email    string `json:"email"`
+		Timezone string `json:"timezone"`
+	}
 	_ = json.Unmarshal(b, &m)
-	email, _ := m["email"].(string)
-	return email, nil
+	return profile{Email: m.Email, Timezone: strings.TrimSpace(m.Timezone)}, nil
+}
+
+func (c *Client) Me() (string, error) {
+	p, err := c.Profile()
+	return p.Email, err
+}
+
+// displayLoc resolves the zone used to render timestamps: an explicit config
+// timezone wins, then the user's profile timezone (as the web UI uses), and
+// finally the host's local zone.
+func displayLoc(cfgTZ, profileTZ string) *time.Location {
+	for _, tz := range []string{strings.TrimSpace(cfgTZ), strings.TrimSpace(profileTZ)} {
+		if tz == "" {
+			continue
+		}
+		if l, err := time.LoadLocation(tz); err == nil {
+			return l
+		}
+	}
+	return time.Local
 }
 
 func Run(cfg clientconfig.ClientConfig) error {

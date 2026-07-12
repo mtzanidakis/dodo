@@ -83,16 +83,16 @@ func TestParseHumanTime(t *testing.T) {
 
 func TestTaskFormValidate(t *testing.T) {
 	f := newTaskForm()
-	if _, _, _, _, err := f.validate(); err == nil {
+	if _, _, _, _, err := f.validate(time.UTC); err == nil {
 		t.Error("expected error with empty title")
 	}
 	f.title.setValue("Buy milk")
-	if _, _, _, _, err := f.validate(); err == nil {
+	if _, _, _, _, err := f.validate(time.UTC); err == nil {
 		t.Error("expected error with empty due")
 	}
 	f.due.setValue("2026-07-11 09:00")
 	f.desc.setValue("2%")
-	title, due, prio, desc, err := f.validate()
+	title, due, prio, desc, err := f.validate(time.UTC)
 	if err != nil {
 		t.Fatalf("validate: %v", err)
 	}

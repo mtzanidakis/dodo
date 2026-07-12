@@ -136,6 +136,75 @@ func TestCLITasksLifecycle(t *testing.T) {
 	}
 }
 
+func TestCLITasksListLocalizesTimezone(t *testing.T) {
+	e := newCLIEnv(t)
+	// A fixed UTC instant so the expected local rendering is deterministic.
+	dueUTC := time.Date(2026, 7, 12, 9, 0, 0, 0, time.UTC)
+	code := e.run(t, "tasks", "create", "--title", "TZ", "--due", dueUTC.Format(time.RFC3339))
+	if code != 0 {
+		t.Fatalf("create exit %d", code)
+	}
+
+	e.outBuf.Reset()
+	code = e.run(t, "tasks", "list", "--filter", "pending")
+	if code != 0 {
+		t.Fatalf("list exit %d", code)
+	}
+	var list struct {
+		Items []map[string]any `json:"items"`
+	}
+	json.Unmarshal(e.outBuf.Bytes(), &list)
+	if len(list.Items) != 1 {
+		t.Fatalf("expected 1 task, got %d: %s", len(list.Items), e.outBuf.String())
+	}
+
+	got, _ := list.Items[0]["due_at"].(string)
+	// The user's profile timezone is Europe/Athens, so due_at should render in
+	// that zone (a +HH:MM offset, not a "Z" UTC suffix) while denoting the same
+	// instant.
+	loc, err := time.LoadLocation("Europe/Athens")
+	if err != nil {
+		t.Fatalf("load zone: %v", err)
+	}
+	if want := dueUTC.In(loc).Format(time.RFC3339); got != want {
+		t.Fatalf("due_at = %q, want %q", got, want)
+	}
+	if strings.HasSuffix(got, "Z") {
+		t.Fatalf("due_at still UTC: %q", got)
+	}
+	parsed, err := time.Parse(time.RFC3339, got)
+	if err != nil || !parsed.Equal(dueUTC) {
+		t.Fatalf("due_at not the same instant: %q (err %v)", got, err)
+	}
+}
+
+func TestCLITimezoneConfigOverride(t *testing.T) {
+	e := newCLIEnv(t)
+	dueUTC := time.Date(2026, 7, 12, 9, 0, 0, 0, time.UTC)
+	if code := e.run(t, "tasks", "create", "--title", "TZ", "--due", dueUTC.Format(time.RFC3339)); code != 0 {
+		t.Fatalf("create exit %d", code)
+	}
+
+	// An explicit config timezone wins over the profile (Europe/Athens).
+	cfg := clientconfig.ClientConfig{URL: e.server.URL, Token: e.token, LogLevel: "info", Timezone: "UTC"}
+	app := cli.New(cfg, false)
+	buf := &bytes.Buffer{}
+	app.Out = buf
+	if code := app.Run([]string{"tasks", "list", "--filter", "pending"}); code != 0 {
+		t.Fatalf("list exit %d", code)
+	}
+	var list struct {
+		Items []map[string]any `json:"items"`
+	}
+	json.Unmarshal(buf.Bytes(), &list)
+	if len(list.Items) != 1 {
+		t.Fatalf("expected 1 task, got %d: %s", len(list.Items), buf.String())
+	}
+	if got, _ := list.Items[0]["due_at"].(string); got != dueUTC.Format(time.RFC3339) {
+		t.Fatalf("due_at = %q, want UTC %q", got, dueUTC.Format(time.RFC3339))
+	}
+}
+
 func TestCLITokensCreate(t *testing.T) {
 	e := newCLIEnv(t)
 	e.outBuf.Reset()

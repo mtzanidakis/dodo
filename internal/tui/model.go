@@ -28,6 +28,7 @@ type model struct {
 	user       string
 	filter     string
 	period     string
+	loc        *time.Location // zone for rendering timestamps
 
 	mode   mode
 	form   taskForm
@@ -36,9 +37,12 @@ type model struct {
 
 func initialModel(c *Client) model {
 	m := model{client: c, filter: "pending", period: "all"}
-	if u, err := c.Me(); err == nil {
-		m.user = u
+	profileTZ := ""
+	if p, err := c.Profile(); err == nil {
+		m.user = p.Email
+		profileTZ = p.Timezone
 	}
+	m.loc = displayLoc(c.cfg.Timezone, profileTZ)
 	m.reload()
 	return m
 }
@@ -219,8 +223,16 @@ func (m model) updateForm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// zone returns the display/input timezone, defaulting to host local when unset.
+func (m model) zone() *time.Location {
+	if m.loc == nil {
+		return time.Local
+	}
+	return m.loc
+}
+
 func (m model) saveForm() (tea.Model, tea.Cmd) {
-	title, due, priority, desc, err := m.form.validate()
+	title, due, priority, desc, err := m.form.validate(m.zone())
 	if err != nil {
 		m.err = err.Error()
 		return m, nil
@@ -247,7 +259,7 @@ func (m model) updateSnooze(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.mode = modeList
 			return m, nil
 		}
-		t, err := parseHumanTime(m.snooze.String(), time.Local)
+		t, err := parseHumanTime(m.snooze.String(), m.zone())
 		if err != nil {
 			m.err = err.Error()
 			return m, nil

@@ -111,8 +111,8 @@ func (f *taskForm) activeInput() *textField {
 }
 
 // validate builds the API create arguments from the form, resolving the due
-// time via parseHumanTime.
-func (f *taskForm) validate() (title, due, priority, desc string, err error) {
+// time via parseHumanTime in loc (the user's display zone).
+func (f *taskForm) validate(loc *time.Location) (title, due, priority, desc string, err error) {
 	title = strings.TrimSpace(f.title.String())
 	if title == "" {
 		return "", "", "", "", errors.New("title is required")
@@ -121,7 +121,7 @@ func (f *taskForm) validate() (title, due, priority, desc string, err error) {
 	if dueRaw == "" {
 		return "", "", "", "", errors.New("due date is required")
 	}
-	t, err := parseHumanTime(dueRaw, time.Local)
+	t, err := parseHumanTime(dueRaw, loc)
 	if err != nil {
 		return "", "", "", "", err
 	}
