@@ -13,6 +13,10 @@ type ClientConfig struct {
 	URL      string `json:"url"`
 	Token    string `json:"token"`
 	LogLevel string `json:"log_level"`
+	// Timezone optionally pins the zone used to render timestamps in CLI
+	// output (an IANA name like "Europe/Athens", or "UTC"). When empty the
+	// CLI derives it from the user's profile, like the web UI.
+	Timezone string `json:"timezone,omitempty"`
 }
 
 type Flags struct {

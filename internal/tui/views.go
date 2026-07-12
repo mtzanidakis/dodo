@@ -57,7 +57,7 @@ func (m model) listView() string {
 			if it.CompletedAt != nil {
 				done = "✓ "
 			}
-			label := fmt.Sprintf("%s%-5s %-16s %s", done, prioTag(it.Priority), fmtLocal(it.DueAt), it.Title)
+			label := fmt.Sprintf("%s%-5s %-16s %s", done, prioTag(it.Priority), m.fmtLocal(it.DueAt), it.Title)
 			if i == m.cursor {
 				b.WriteString(selStyle.Render("▸ " + label))
 			} else {
@@ -158,12 +158,12 @@ func (m model) detailView() string {
 	}
 	b.WriteString(detailRow("Description", desc))
 	b.WriteString(detailRow("Priority", it.Priority))
-	b.WriteString(detailRow("Due", fmtLocal(it.DueAt)))
+	b.WriteString(detailRow("Due", m.fmtLocal(it.DueAt)))
 	if it.CompletedAt != nil {
-		b.WriteString(detailRow("Completed", fmtLocal(*it.CompletedAt)))
+		b.WriteString(detailRow("Completed", m.fmtLocal(*it.CompletedAt)))
 	}
 	if it.SnoozedUntil != nil {
-		b.WriteString(detailRow("Snoozed until", fmtLocal(*it.SnoozedUntil)))
+		b.WriteString(detailRow("Snoozed until", m.fmtLocal(*it.SnoozedUntil)))
 	}
 	b.WriteString(detailRow("Recurrence", recurrenceText(it)))
 	b.WriteString("\n" + hintStyle.Render("esc/enter back"))
@@ -224,8 +224,9 @@ func prioTag(p string) string {
 	}
 }
 
-// fmtLocal renders an RFC3339 timestamp in the local timezone, or "-" when empty.
-func fmtLocal(rfc string) string {
+// fmtLocal renders an RFC3339 timestamp in the model's display zone, or "-"
+// when empty.
+func (m model) fmtLocal(rfc string) string {
 	if rfc == "" {
 		return "-"
 	}
@@ -233,5 +234,9 @@ func fmtLocal(rfc string) string {
 	if err != nil {
 		return rfc
 	}
-	return t.Local().Format("2006-01-02 15:04")
+	loc := m.loc
+	if loc == nil {
+		loc = time.Local
+	}
+	return t.In(loc).Format("2006-01-02 15:04")
 }

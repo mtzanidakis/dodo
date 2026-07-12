@@ -30,6 +30,9 @@ type App struct {
 	out    io.Writer
 	err    io.Writer
 	client *http.Client
+
+	loc         *time.Location // display zone for timestamps; resolved lazily
+	locResolved bool
 }
 
 func New(cfg clientconfig.ClientConfig, pretty bool) *App {
@@ -85,7 +88,7 @@ func (a *App) usage() {
 	_, _ = io.WriteString(a.err, `dodo-cli - todo client for AI agents
 
 Commands:
-  init [--url URL --token TOKEN]
+  init [--url URL --token TOKEN --timezone IANA]
   me
   tasks list [--filter=pending|completed|all] [--period=all|today|week|month] [--priority] [--from] [--to] [--limit] [--cursor]
   tasks get <id>
@@ -149,11 +152,104 @@ func (a *App) emitRaw(b []byte) {
 	if len(bytes.TrimSpace(b)) > 0 {
 		var v any
 		if err := json.Unmarshal(b, &v); err == nil {
-			a.emitJSON(v)
+			a.emitJSON(a.localizeTimes(v))
 			return
 		}
 	}
 	_, _ = io.WriteString(a.out, strings.TrimSpace(string(b))+"\n")
+}
+
+// timestampKeys are the JSON fields the API serializes as RFC3339 UTC. The CLI
+// rewrites their values into the user's display zone so `tasks list`, `get`,
+// `completions`, etc. show local times like the web and TUI, not raw UTC.
+var timestampKeys = map[string]bool{
+	"due_at":            true,
+	"completed_at":      true,
+	"snoozed_until":     true,
+	"created_at":        true,
+	"updated_at":        true,
+	"recurrence_end_at": true,
+	"last_used_at":      true,
+	"expires_at":        true,
+	"revoked_at":        true,
+}
+
+// localizeTimes walks a decoded JSON value and reformats every known timestamp
+// field into the display zone, keeping the RFC3339 layout (so the value stays
+// machine-parseable and denotes the same instant, just with a local offset).
+// The zone is resolved lazily, so responses without timestamps never trigger
+// the profile lookup.
+func (a *App) localizeTimes(v any) any {
+	resolve := func() *time.Location { return a.displayLoc() }
+	return walkLocalize(v, resolve)
+}
+
+func walkLocalize(v any, loc func() *time.Location) any {
+	switch t := v.(type) {
+	case map[string]any:
+		for k, val := range t {
+			if s, ok := val.(string); ok && timestampKeys[k] {
+				t[k] = localizeRFC3339(s, loc())
+			} else {
+				t[k] = walkLocalize(val, loc)
+			}
+		}
+		return t
+	case []any:
+		for i, val := range t {
+			t[i] = walkLocalize(val, loc)
+		}
+		return t
+	default:
+		return t
+	}
+}
+
+func localizeRFC3339(s string, loc *time.Location) string {
+	ts, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		return s
+	}
+	return ts.In(loc).Format(time.RFC3339)
+}
+
+// displayLoc resolves the zone used to render timestamps: an explicit config
+// timezone wins, then the user's profile timezone (as the web UI uses), and
+// finally the host's local zone. The result is cached for the process.
+func (a *App) displayLoc() *time.Location {
+	if a.locResolved {
+		return a.loc
+	}
+	a.locResolved = true
+	a.loc = time.Local
+	if tz := strings.TrimSpace(a.cfg.Timezone); tz != "" {
+		if l, err := time.LoadLocation(tz); err == nil {
+			a.loc = l
+			return a.loc
+		}
+	}
+	if tz := a.profileTimezone(); tz != "" {
+		if l, err := time.LoadLocation(tz); err == nil {
+			a.loc = l
+		}
+	}
+	return a.loc
+}
+
+// profileTimezone fetches the caller's configured timezone from /api/v1/me,
+// returning "" on any error so callers fall back to the host local zone.
+func (a *App) profileTimezone() string {
+	status, body, err := a.request("GET", "/api/v1/me", nil)
+	if err != nil || status < 200 || status >= 300 {
+		return ""
+	}
+	var me struct {
+		Timezone string `json:"timezone"`
+	}
+	if err := json.Unmarshal(body, &me); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(me.Timezone)
 }
 
 func (a *App) eprintln(args ...any) {

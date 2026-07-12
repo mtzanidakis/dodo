@@ -28,6 +28,7 @@ func (a *App) cmdInit(args []string) int {
 	fs := flag.NewFlagSet("init", flag.ContinueOnError)
 	url := fs.String("url", "", "api base url")
 	token := fs.String("token", "", "api token")
+	timezone := fs.String("timezone", "", "display timezone (IANA name; default: profile)")
 	configPath := fs.String("config", "", "config.json path")
 	_ = fs.Parse(args)
 
@@ -37,6 +38,9 @@ func (a *App) cmdInit(args []string) int {
 	}
 	if *token != "" {
 		cfg.Token = *token
+	}
+	if *timezone != "" {
+		cfg.Timezone = *timezone
 	}
 	path := *configPath
 	if err := clientconfig.Write(cfg, path); err != nil {
