@@ -19,8 +19,12 @@ services:
     labels:
       # Consumed by an ofelia scheduler (github.com/mcuadros/ofelia); writes a
       # fresh backup atomically so /dumps/dodo.sqlite is always a valid copy.
+      # Exec as uid 100 (the container's dodo user, which owns the ./dumps bind
+      # mount) so VACUUM INTO can create the dump; ofelia's default exec user
+      # otherwise fails with SQLITE_CANTOPEN.
       ofelia.enabled: "true"
       ofelia.job-exec.dodo-backup.schedule: "@hourly"
       ofelia.job-exec.dodo-backup.command: "sh -c 'rm -f /dumps/dodo.new.sqlite && dodo backup -dump /dumps/dodo.new.sqlite && mv -f /dumps/dodo.new.sqlite /dumps/dodo.sqlite'"
+      ofelia.job-exec.dodo-backup.user: "100"
 
 # vi: ft=yaml
