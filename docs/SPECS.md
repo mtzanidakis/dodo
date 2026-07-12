@@ -26,8 +26,8 @@ The project will be MIT-licensed.
 - Browser notifications: opt-in desktop notifications for due tasks (Web Notifications API), enabled from the web Account page.
 - Full tasks management and viewing from AI agents with the cli. Raw json default output for agents, with --pretty for humans.
 - Modern, clean web ui: topbar user menu, list view with time-period (today/week/month) and status (pending/completed/all) filters, a month calendar, dark/light/system theme selector, and a language switcher.
-- i18n: English and Greek UI (web, TUI, telegram messages). Per-user timezone and locale.
-- Server configuration via env vars. The cli and tui clients read `~/.config/dodo/config.json` (overridable with flags), no env vars.
+- i18n: English and Greek UI (web, TUI, telegram messages). Per-user timezone and locale. All three clients (web, TUI, CLI) present task times in the user's timezone: the web and, now, the TUI and CLI resolve the zone from an optional client-config override, then the user's profile timezone, then the host local zone. The API always serializes UTC; conversion happens at the render edge.
+- Server configuration via env vars. The cli and tui clients read `~/.config/dodo/config.json` (overridable with flags), no env vars. The client config has an optional `timezone` (IANA name) that overrides the profile timezone for rendering; `dodo-cli init` accepts `--timezone`.
 
 ## Stack
 

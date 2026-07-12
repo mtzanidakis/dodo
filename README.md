@@ -117,12 +117,20 @@ The CLI/TUI clients ignore env vars and read
 {
   "url": "http://localhost:8080",
   "token": "dodo_xxxxxxxxxxxx",
-  "log_level": "info"
+  "log_level": "info",
+  "timezone": "Europe/Athens"
 }
 ```
 
-`dodo-cli init --url <api> --token <token>` writes the minimal config for
-first-time setup.
+`dodo-cli init --url <api> --token <token> [--timezone <IANA>]` writes the
+config for first-time setup.
+
+Both clients render task times (and the CLI parses `--due`/`--until` input)
+in your timezone, matching the web UI. The zone is resolved in this order:
+the optional `timezone` config value (an IANA name like `Europe/Athens`, or
+`UTC`), then your **profile timezone** from the server, then the host's local
+zone. The CLI keeps its JSON output valid RFC3339 — same instant, just a local
+offset (e.g. `2026-07-11T20:00:00+03:00`) instead of a `Z` suffix.
 
 ## Telegram setup
 

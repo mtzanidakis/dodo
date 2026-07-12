@@ -69,11 +69,14 @@ Also `go vet ./...` and `gofmt -l .` (must be empty).
 {
   "url": "http://localhost:8080",
   "token": "dodo_xxxxxxxxxxxx",
-  "log_level": "info"
+  "log_level": "info",
+  "timezone": "Europe/Athens"
 }
 ```
 
 `--url` and `--token` flags override the config file. Missing `url`/`token` when an API call is needed -> exit 5.
+
+`timezone` (optional IANA name) is the display zone for rendering timestamps, resolved config -> profile (`/api/v1/me`) -> host local. The CLI rewrites timestamp fields in its JSON output to this zone (still valid RFC3339) and the TUI renders/parses input in it. `dodo-cli init` accepts `--timezone`.
 
 ## Quickstart (local)
 
