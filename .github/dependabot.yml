@@ -40,3 +40,7 @@ updates:
       interval: weekly
     commit-message:
       prefix: build
+    ignore:
+      # Stay on the Node 24 LTS build stage; allow 24.x patch/minor only.
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
