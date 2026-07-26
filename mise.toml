@@ -32,6 +32,9 @@ run = "golangci-lint run ./..."
 [tasks."web:build"]
 run = "cd web && npm install --no-audit --no-fund && npm run build"
 
+[tasks."web:test"]
+run = "cd web && npm install --no-audit --no-fund && npm test"
+
 [tasks."web:dev"]
 run = "cd web && npm run dev"
 

@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/mtzanidakis/dodo/internal/dateformat"
 )
 
 var (
@@ -238,5 +240,9 @@ func (m model) fmtLocal(rfc string) string {
 	if loc == nil {
 		loc = time.Local
 	}
-	return t.In(loc).Format("2006-01-02 15:04")
+	local := t.In(loc)
+	if s := dateformat.Render(local, dateformat.WithTime(m.df)); s != "" {
+		return s
+	}
+	return local.Format("2006-01-02 15:04")
 }

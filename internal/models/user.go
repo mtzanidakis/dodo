@@ -10,6 +10,7 @@ type User struct {
 	Timezone             string
 	Locale               Locale
 	Theme                Theme
+	DateFormat           string
 	TelegramBotToken     string
 	TelegramAllowedIDs   string
 	TelegramChatID       string

@@ -411,6 +411,48 @@ textarea { resize: vertical; min-height: 4rem; }
 .cal-head .month { font-weight: 700; font-size: 1.2rem; letter-spacing: -0.01em; }
 .btn-nav { font-size: 1.35rem; line-height: 1; padding: 0.25rem 1rem; font-weight: 600; }
 
+/* ---------- date picker ---------- */
+/* Appended to <body> and positioned from the field's rect, so it is never
+   clipped by a panel's overflow or trapped under a sticky header. */
+.dp {
+  position: absolute;
+  z-index: 70;
+  width: 17.5rem;
+  padding: 0.6rem;
+  background: var(--bg-elev);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+}
+.dp-head { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.5rem; }
+.dp-month { flex: 1; text-align: center; font-weight: 700; font-size: 0.92rem; }
+.dp-nav {
+  width: 1.9rem; height: 1.9rem; flex: none;
+  font-size: 1.1rem; line-height: 1;
+  color: var(--fg-muted); background: transparent;
+  border: 1px solid transparent; border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.dp-nav:hover { background: var(--bg-subtle); color: var(--fg); }
+.dp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.dp .dp-dow {
+  padding: 0.25rem 0; text-align: center;
+  font-size: 0.66rem; font-weight: 700; text-transform: uppercase;
+  color: var(--fg-muted); letter-spacing: 0.04em;
+}
+.dp-day {
+  aspect-ratio: 1; padding: 0;
+  font: inherit; font-size: 0.82rem;
+  color: var(--fg); background: transparent;
+  border: 1px solid transparent; border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.dp-day:hover { background: var(--bg-subtle); }
+.dp-day.today { font-weight: 700; border-color: var(--border-strong); }
+.dp-day.selected { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); font-weight: 700; }
+.dp-foot { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.6rem; }
+.dp .dp-time { width: auto; flex: 1; padding: 0.3rem 0.45rem; font-size: 0.85rem; }
+
 /* ---------- tokens table ---------- */
 .table { width: 100%; border-collapse: collapse; }
 .table th { text-align: left; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--fg-muted); padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--border); }

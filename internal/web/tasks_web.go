@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/mtzanidakis/dodo/internal/auth"
+	"github.com/mtzanidakis/dodo/internal/dateformat"
 	"github.com/mtzanidakis/dodo/internal/i18n"
 	"github.com/mtzanidakis/dodo/internal/models"
 	"github.com/mtzanidakis/dodo/internal/recurrence"
@@ -74,7 +75,24 @@ func recurrenceLabelFreq(freq *models.RecurrenceFreq, interval int, lang string)
 	return label
 }
 
-func (h *Handler) toTaskView(t *models.Task, loc *time.Location, lang string, now time.Time) taskView {
+// fmtDate renders t with the user's date pattern, falling back to layout when
+// the user has not chosen one (dateformat.Auto).
+func fmtDate(t time.Time, pattern, layout string) string {
+	if s := dateformat.Render(t, pattern); s != "" {
+		return s
+	}
+	return t.Format(layout)
+}
+
+// fmtDateTime is fmtDate with a 24h clock appended to the user's pattern.
+func fmtDateTime(t time.Time, pattern, layout string) string {
+	if s := dateformat.Render(t, dateformat.WithTime(pattern)); s != "" {
+		return s
+	}
+	return t.Format(layout)
+}
+
+func (h *Handler) toTaskView(t *models.Task, loc *time.Location, lang, df string, now time.Time) taskView {
 	local := t.DueAt.In(loc)
 	tv := taskView{
 		ID:              t.ID,
@@ -83,19 +101,19 @@ func (h *Handler) toTaskView(t *models.Task, loc *time.Location, lang string, no
 		Priority:        t.Priority,
 		DueAt:           t.DueAt.UTC().Format(time.RFC3339),
 		DueLocal:        local.Format("15:04"),
-		DueDateLocal:    local.Format("Mon 2 Jan"),
+		DueDateLocal:    fmtDate(local, df, "Mon 2 Jan"),
 		Recurring:       t.Recurring(),
 		RecurrenceLabel: recurrenceLabel(t, lang),
 		Completed:       t.Completed(),
 	}
 	if t.SnoozedUntil != nil && t.SnoozedUntil.After(now) {
 		tv.Snoozed = true
-		tv.SnoozedUntil = t.SnoozedUntil.In(loc).Format("Mon 2 Jan 15:04")
+		tv.SnoozedUntil = fmtDateTime(t.SnoozedUntil.In(loc), df, "Mon 2 Jan 15:04")
 	}
 	return tv
 }
 
-func dayLabel(local, now time.Time, lang string) string {
+func dayLabel(local, now time.Time, lang, df string) string {
 	y1, m1, d1 := local.Date()
 	y2, m2, d2 := now.Date()
 	today := time.Date(y2, m2, d2, 0, 0, 0, 0, now.Location())
@@ -108,7 +126,7 @@ func dayLabel(local, now time.Time, lang string) string {
 	case -1:
 		return i18n.T("day.yesterday", lang)
 	default:
-		return local.Format("Mon 2 Jan 2006")
+		return fmtDate(local, df, "Mon 2 Jan 2006")
 	}
 }
 
@@ -118,23 +136,23 @@ func dayLabel(local, now time.Time, lang string) string {
 func (h *Handler) timelinePage(r *http.Request, u *models.User, loc *time.Location, now time.Time, filter, period, cursor string) ([]dayGroup, string) {
 	from, to := models.PeriodBounds(period, now)
 	items, next, _ := h.deps.Store.Timeline(r.Context(), u.ID, filter, from, to, pageSize, cursor)
-	return h.buildTimelineGroups(items, filter, loc, string(u.Locale), now), next
+	return h.buildTimelineGroups(items, filter, loc, string(u.Locale), u.DateFormat, now), next
 }
 
 // buildTimelineGroups groups a timeline page by day — completion day for the
 // completed history, due day otherwise.
-func (h *Handler) buildTimelineGroups(items []*store.TimelineItem, filter string, loc *time.Location, lang string, now time.Time) []dayGroup {
+func (h *Handler) buildTimelineGroups(items []*store.TimelineItem, filter string, loc *time.Location, lang, df string, now time.Time) []dayGroup {
 	var groups []dayGroup
 	curKey := ""
 	for _, it := range items {
 		local := groupTime(it, filter).In(loc)
 		key := local.Format("2006-01-02")
 		if key != curKey || len(groups) == 0 {
-			groups = append(groups, dayGroup{Label: dayLabel(local, now, lang)})
+			groups = append(groups, dayGroup{Label: dayLabel(local, now, lang, df)})
 			curKey = key
 		}
 		g := &groups[len(groups)-1]
-		g.Tasks = append(g.Tasks, timelineView(it, filter, loc, lang, now))
+		g.Tasks = append(g.Tasks, timelineView(it, filter, loc, lang, df, now))
 	}
 	return groups
 }
@@ -148,7 +166,7 @@ func groupTime(it *store.TimelineItem, filter string) time.Time {
 
 // timelineView renders one timeline row into the shared taskView, matching the
 // per-view formatting the old builders produced.
-func timelineView(it *store.TimelineItem, filter string, loc *time.Location, lang string, now time.Time) taskView {
+func timelineView(it *store.TimelineItem, filter string, loc *time.Location, lang, df string, now time.Time) taskView {
 	local := it.DueAt.In(loc)
 	tv := taskView{
 		ID:           it.ID,
@@ -157,7 +175,7 @@ func timelineView(it *store.TimelineItem, filter string, loc *time.Location, lan
 		Priority:     it.Priority,
 		DueAt:        it.DueAt.UTC().Format(time.RFC3339),
 		DueLocal:     local.Format("15:04"),
-		DueDateLocal: local.Format("Mon 2 Jan"),
+		DueDateLocal: fmtDate(local, df, "Mon 2 Jan"),
 	}
 	switch it.Kind {
 	case store.TimelinePending:
@@ -165,7 +183,7 @@ func timelineView(it *store.TimelineItem, filter string, loc *time.Location, lan
 		tv.RecurrenceLabel = recurrenceLabelFreq(it.RecurrenceFreq, it.RecurrenceInterval, lang)
 		if it.SnoozedUntil != nil && it.SnoozedUntil.After(now) {
 			tv.Snoozed = true
-			tv.SnoozedUntil = it.SnoozedUntil.In(loc).Format("Mon 2 Jan 15:04")
+			tv.SnoozedUntil = fmtDateTime(it.SnoozedUntil.In(loc), df, "Mon 2 Jan 15:04")
 		}
 	case store.TimelineOccurrence, store.TimelineCompleted:
 		tv.Completed = true
@@ -174,7 +192,7 @@ func timelineView(it *store.TimelineItem, filter string, loc *time.Location, lan
 			tv.CompletedLocal = it.CompletedAt.In(loc).Format("15:04")
 		}
 		if filter == "completed" {
-			tv.DueLocal = local.Format("Mon 2 Jan 15:04")
+			tv.DueLocal = fmtDateTime(local, df, "Mon 2 Jan 15:04")
 		}
 	}
 	return tv
@@ -357,11 +375,8 @@ func (h *Handler) buildCalendar(r *http.Request, u *models.User, loc *time.Locat
 		Month:      first.Format("2006-01"),
 		Prev:       first.AddDate(0, -1, 0).Format("2006-01"),
 		Next:       next.Format("2006-01"),
-		DOW: []string{
-			i18n.T("dow.mon", lang), i18n.T("dow.tue", lang), i18n.T("dow.wed", lang),
-			i18n.T("dow.thu", lang), i18n.T("dow.fri", lang), i18n.T("dow.sat", lang), i18n.T("dow.sun", lang),
-		},
-		Weeks: weeks,
+		DOW:        dowLabels(lang),
+		Weeks:      weeks,
 	}
 }
 
@@ -375,8 +390,19 @@ func ptrT(t time.Time) *time.Time { return &t }
 
 // ---- task mutations -------------------------------------------------------
 
-func parseWebDue(s string, loc *time.Location) time.Time {
+// parseWebDue reads a due date submitted by the browser. When the user has
+// chosen a date format the text box speaks that pattern, with or without a
+// time; the built-in layouts stay accepted so a datetime-local picker, an
+// older bookmark or a hand-written ISO value still work.
+func parseWebDue(s string, loc *time.Location, df string) time.Time {
 	s = strings.TrimSpace(s)
+	if df != dateformat.Auto {
+		for _, pattern := range []string{dateformat.WithTime(df), df} {
+			if t, err := dateformat.Parse(s, pattern, loc); err == nil {
+				return t.UTC()
+			}
+		}
+	}
 	for _, layout := range []string{time.RFC3339, "2006-01-02T15:04", "2006-01-02 15:04", "2006-01-02"} {
 		if t, err := time.ParseInLocation(layout, s, loc); err == nil {
 			return t.UTC()
@@ -388,7 +414,7 @@ func parseWebDue(s string, loc *time.Location) time.Time {
 func (h *Handler) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 	u := auth.UserFromContext(r.Context())
 	loc := loadLoc(u.Timezone)
-	due := parseWebDue(r.FormValue("due_at"), loc)
+	due := parseWebDue(r.FormValue("due_at"), loc, u.DateFormat)
 	title := strings.TrimSpace(r.FormValue("title"))
 	if title == "" || due.IsZero() {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -436,8 +462,11 @@ func (h *Handler) handleEditTaskPage(w http.ResponseWriter, r *http.Request) {
 		selected = string(*t.RecurrenceFreq)
 	}
 	pd.Freqs = freqOptions(string(u.Locale), selected)
-	tv := h.toTaskView(t, loc, string(u.Locale), now)
-	tv.DueLocal = t.DueAt.In(loc).Format("2006-01-02T15:04")
+	tv := h.toTaskView(t, loc, string(u.Locale), u.DateFormat, now)
+	// The due field is a native datetime-local picker only while the user
+	// keeps the browser default; a chosen pattern needs a plain text box that
+	// shows and accepts that pattern.
+	tv.DueLocal = fmtDateTime(t.DueAt.In(loc), u.DateFormat, "2006-01-02T15:04")
 	pd.Groups = []dayGroup{{Tasks: []taskView{tv}}}
 	h.render(w, "tasks/edit.html", pd)
 }
@@ -457,7 +486,7 @@ func (h *Handler) handleUpdateTask(w http.ResponseWriter, r *http.Request) {
 	if p, err := models.ParsePriority(r.FormValue("priority")); err == nil {
 		t.Priority = p
 	}
-	if due := parseWebDue(r.FormValue("due_at"), loc); !due.IsZero() {
+	if due := parseWebDue(r.FormValue("due_at"), loc, u.DateFormat); !due.IsZero() {
 		t.DueAt = due
 	}
 	if freq := r.FormValue("recurrence_freq"); freq != "" {
@@ -516,7 +545,7 @@ func (h *Handler) handleCompleteTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.deps.Hub.Publish(u.ID, "task.completed", map[string]any{"id": id})
-	tv := h.toTaskView(t, loc, string(u.Locale), now)
+	tv := h.toTaskView(t, loc, string(u.Locale), u.DateFormat, now)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	tmpl := fragmentTemplate("tasks/_row.html")
 	_ = tmpl.ExecuteTemplate(w, "row", rowCtx{Task: tv, Lang: string(u.Locale), CSRF: csrfOrNew(w, r)})
@@ -541,7 +570,7 @@ func (h *Handler) handleSnoozeTask(w http.ResponseWriter, r *http.Request) {
 		tl := now.In(loc).AddDate(0, 0, 1)
 		until = time.Date(tl.Year(), tl.Month(), tl.Day(), 9, 0, 0, 0, loc)
 	default:
-		until = parseWebDue(r.FormValue("until"), loc)
+		until = parseWebDue(r.FormValue("until"), loc, u.DateFormat)
 	}
 	if until.IsZero() {
 		until = now.Add(time.Hour)

@@ -25,10 +25,12 @@ mise run build-server  # build only ./cmd/dodo
 mise run test          # go test -race -covermode=atomic ./...
 mise run lint          # golangci-lint run ./...
 mise run web:build     # build web assets into internal/web/dist
+mise run web:test      # vitest over web/src
 mise run tidy          # go mod tidy
 ```
 
-Always run **lint** and **test** before declaring a task done:
+Always run **lint** and **test** before declaring a task done, plus
+**web:test** when you touch anything under `web/src`:
 
 ```
 mise run lint && mise run test
@@ -44,6 +46,7 @@ Also `go vet ./...` and `gofmt -l .` (must be empty).
 - `context.Context` is the first param of every store/handler method.
 - JSON: snake_case struct tags.
 - Datetimes: stored in the DB as `TEXT` RFC3339 **UTC**. Convert to/from the user's timezone only at the API/render edge.
+- Date display: never hardcode a new user-facing date layout. Go through `internal/dateformat` with the user's `date_format` (`""` = the built-in layout), so web, TUI and CLI input stay consistent. Go layout strings are not usable as a user setting — a literal in the pattern silently becomes a format verb.
 - IDs: UUIDv7 strings (`uuid.NewV7()`), `TEXT PRIMARY KEY`.
 - Passwords: minimum 8 characters, enforced everywhere.
 - Per-user data scoping: every store query touching `tasks`, `task_completions`, `api_tokens` (and the `me/*` routes) takes a `userID` and constrains `WHERE user_id = ?`. Body `user_id` fields are ignored. Cross-user `GET/PATCH/DELETE /tasks/{id}` returns **404** (not 403) to avoid leaking existence. All users are equal; there are no roles.
@@ -70,13 +73,16 @@ Also `go vet ./...` and `gofmt -l .` (must be empty).
   "url": "http://localhost:8080",
   "token": "dodo_xxxxxxxxxxxx",
   "log_level": "info",
-  "timezone": "Europe/Athens"
+  "timezone": "Europe/Athens",
+  "date_format": "DD/MM/YYYY"
 }
 ```
 
 `--url` and `--token` flags override the config file. Missing `url`/`token` when an API call is needed -> exit 5.
 
-`timezone` (optional IANA name) is the display zone for rendering timestamps, resolved config -> profile (`/api/v1/me`) -> host local. The CLI rewrites timestamp fields in its JSON output to this zone (still valid RFC3339) and the TUI renders/parses input in it. `dodo-cli init` accepts `--timezone`.
+`timezone` (optional IANA name) is the display zone for rendering timestamps, resolved config -> profile (`/api/v1/me`) -> host local. The CLI rewrites timestamp fields in its JSON output to this zone (still valid RFC3339) and both clients parse input in it. `dodo-cli init` accepts `--timezone`.
+
+`date_format` (optional token pattern) is resolved the same way and handled by `internal/dateformat`. `dodo-cli init` accepts `--date-format`.
 
 ## Quickstart (local)
 
@@ -119,3 +125,13 @@ Require `ci` (lint, test, build) to pass; require conventional commits; linear h
 
 - In-memory SQLite (`:memory:`) for store tests; `httptest` for api/cli tests; table-driven; `t.Parallel()` where safe (but not in tests that use `t.Setenv`).
 - Aim for >= 85% coverage in `internal/store`, `internal/recurrence`, `internal/auth`, `internal/api`, `internal/scheduler`, `internal/notify`.
+
+### Frontend (vitest + jsdom)
+
+`web/src/*.test.js`, run by `mise run web:test` and the `web-test` CI job.
+
+The browser files are plain classic scripts, not ES modules — there is no bundler and `layout.html` loads them with `<script defer>`. Tests therefore `import` a file for its side effect and read the global it publishes (`globalThis.dodoDateFormat`), so the tested code is byte-identical to the shipped code. Do not add `export` statements to anything under `web/src` unless you also change how `layout.html` loads it.
+
+`dateformat.js` is the browser half of `internal/dateformat` and must agree with it: same tokens, same rejections (including out-of-range days like 31 February). When you change one, change and re-test both.
+
+`picker.test.js` drives the real listeners `app.js` attaches on load, against jsdom. `getBoundingClientRect` returns zeros there, so positioning is not covered — verify layout changes in a browser.

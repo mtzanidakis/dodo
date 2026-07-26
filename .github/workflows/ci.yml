@@ -52,6 +52,15 @@ jobs:
           name: coverage
           path: coverage.out
 
+  web-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4
+        with:
+          experimental: true
+      - run: mise run web:test
+
   build:
     runs-on: ubuntu-latest
     steps:

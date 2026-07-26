@@ -76,7 +76,7 @@ func TestFormValidateUsesZone(t *testing.T) {
 	f := newTaskForm()
 	f.title.setValue("x")
 	f.due.setValue("2026-07-11 09:00")
-	_, due, _, _, err := f.validate(loc)
+	_, due, _, _, err := f.validate(loc, "")
 	if err != nil {
 		t.Fatalf("validate: %v", err)
 	}
@@ -99,5 +99,52 @@ func TestModelTimezoneConfigOverride(t *testing.T) {
 	dueUTC := time.Date(2026, 7, 12, 9, 0, 0, 0, time.UTC)
 	if got := m.fmtLocal(dueUTC.Format(time.RFC3339)); got != "2026-07-12 09:00" {
 		t.Fatalf("fmtLocal = %q, want UTC rendering", got)
+	}
+}
+
+func TestDisplayFormatPrefersConfigThenProfile(t *testing.T) {
+	t.Parallel()
+	if got := displayFormat("DD/MM/YYYY", "YYYY-MM-DD"); got != "DD/MM/YYYY" {
+		t.Fatalf("config pattern should win, got %q", got)
+	}
+	if got := displayFormat("", "YYYY-MM-DD"); got != "YYYY-MM-DD" {
+		t.Fatalf("profile pattern should be used, got %q", got)
+	}
+	if got := displayFormat("", ""); got != "" {
+		t.Fatalf("no pattern should mean Auto, got %q", got)
+	}
+	// A pattern the server would never store (older client, hand-edited
+	// config) must not leak into every rendered date.
+	if got := displayFormat("garbage", "YYYY-MM-DD"); got != "YYYY-MM-DD" {
+		t.Fatalf("invalid config pattern should be skipped, got %q", got)
+	}
+}
+
+func TestFormParsesAndRendersUserDateFormat(t *testing.T) {
+	t.Parallel()
+	loc, err := time.LoadLocation("Europe/Athens")
+	if err != nil {
+		t.Fatalf("load location: %v", err)
+	}
+	f := newTaskForm()
+	f.title.setValue("Pay bill")
+	f.due.setValue("05/07/2026 09:30")
+	_, due, _, _, err := f.validate(loc, "DD/MM/YYYY")
+	if err != nil {
+		t.Fatalf("validate: %v", err)
+	}
+	// 09:30 Athens in July is 06:30 UTC.
+	if want := "2026-07-05T06:30:00Z"; due != want {
+		t.Fatalf("due = %q, want %q", due, want)
+	}
+
+	m := model{loc: loc, df: "DD/MM/YYYY"}
+	if got := m.fmtLocal(due); got != "05/07/2026 09:30" {
+		t.Fatalf("fmtLocal = %q, want 05/07/2026 09:30", got)
+	}
+	// Auto keeps the layout the TUI used before the setting existed.
+	plain := model{loc: loc}
+	if got := plain.fmtLocal(due); got != "2026-07-05 09:30" {
+		t.Fatalf("fmtLocal without a pattern = %q", got)
 	}
 }

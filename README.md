@@ -118,12 +118,13 @@ The CLI/TUI clients ignore env vars and read
   "url": "http://localhost:8080",
   "token": "dodo_xxxxxxxxxxxx",
   "log_level": "info",
-  "timezone": "Europe/Athens"
+  "timezone": "Europe/Athens",
+  "date_format": "DD/MM/YYYY"
 }
 ```
 
-`dodo-cli init --url <api> --token <token> [--timezone <IANA>]` writes the
-config for first-time setup.
+`dodo-cli init --url <api> --token <token> [--timezone <IANA>]
+[--date-format <pattern>]` writes the config for first-time setup.
 
 Both clients render task times (and the CLI parses `--due`/`--until` input)
 in your timezone, matching the web UI. The zone is resolved in this order:
@@ -131,6 +132,39 @@ the optional `timezone` config value (an IANA name like `Europe/Athens`, or
 `UTC`), then your **profile timezone** from the server, then the host's local
 zone. The CLI keeps its JSON output valid RFC3339 — same instant, just a local
 offset (e.g. `2026-07-11T20:00:00+03:00`) instead of a `Z` suffix.
+
+## Date format
+
+Dates are shown as `Mon 2 Jan` by default. Pick a different one on the web
+**Account** page — the dropdown previews today in each format:
+
+| Pattern       | Today            |
+|---------------|------------------|
+| *Automatic*   | `Sun 26 Jul 2026`|
+| `DD/MM/YYYY`  | `26/07/2026`     |
+| `MM/DD/YYYY`  | `07/26/2026`     |
+| `YYYY-MM-DD`  | `2026-07-26`     |
+| `D MMM YYYY`  | `26 Jul 2026`    |
+| `MMM D, YYYY` | `Jul 26, 2026`   |
+
+**Custom…** takes any combination of these tokens plus punctuation, and must
+contain a year, a month and a day:
+
+| Token  | Means            | Token  | Means           |
+|--------|------------------|--------|-----------------|
+| `YYYY` | 2026             | `MMMM` | July            |
+| `YY`   | 26               | `MMM`  | Jul             |
+| `MM`   | 07               | `DD`   | 05              |
+| `M`    | 7                | `D`    | 5               |
+
+The setting lives on your profile (`date_format` on `/api/v1/me`), so the web
+UI, `dodo-tui` and `dodo-cli` input all follow it. Clients can override it
+with `date_format` in their config.
+
+Once you pick a format, the web Due field becomes a plain text box that both
+shows and accepts that pattern (`05/08/2026 17:30`) — a native date picker
+always renders in the browser's own locale, which is what the default falls
+back to. Times stay 24h, and what is stored is unchanged: RFC3339 UTC.
 
 ## Telegram setup
 

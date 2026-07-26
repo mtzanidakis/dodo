@@ -13,6 +13,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/mtzanidakis/dodo/internal/clientconfig"
+	"github.com/mtzanidakis/dodo/internal/dateformat"
 )
 
 type taskItem struct {
@@ -161,23 +162,29 @@ func (c *Client) Delete(id string) error {
 }
 
 type profile struct {
-	Email    string
-	Timezone string
+	Email      string
+	Timezone   string
+	DateFormat string
 }
 
 // Profile fetches the caller's account, returning the fields the TUI needs
-// (email for the header, timezone for rendering times).
+// (email for the header, timezone and date format for rendering times).
 func (c *Client) Profile() (profile, error) {
 	_, b, err := c.request("GET", "/api/v1/me", nil)
 	if err != nil {
 		return profile{}, err
 	}
 	var m struct {
-		Email    string `json:"email"`
-		Timezone string `json:"timezone"`
+		Email      string `json:"email"`
+		Timezone   string `json:"timezone"`
+		DateFormat string `json:"date_format"`
 	}
 	_ = json.Unmarshal(b, &m)
-	return profile{Email: m.Email, Timezone: strings.TrimSpace(m.Timezone)}, nil
+	return profile{
+		Email:      m.Email,
+		Timezone:   strings.TrimSpace(m.Timezone),
+		DateFormat: strings.TrimSpace(m.DateFormat),
+	}, nil
 }
 
 func (c *Client) Me() (string, error) {
@@ -198,6 +205,18 @@ func displayLoc(cfgTZ, profileTZ string) *time.Location {
 		}
 	}
 	return time.Local
+}
+
+// displayFormat resolves the date pattern used to render and read dates: an
+// explicit config pattern wins, then the user's profile pattern, and finally
+// dateformat.Auto (the built-in layout).
+func displayFormat(cfgDF, profileDF string) string {
+	for _, df := range []string{strings.TrimSpace(cfgDF), strings.TrimSpace(profileDF)} {
+		if dateformat.Validate(df) == nil && df != dateformat.Auto {
+			return df
+		}
+	}
+	return dateformat.Auto
 }
 
 func Run(cfg clientconfig.ClientConfig) error {

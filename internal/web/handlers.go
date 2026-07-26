@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/mtzanidakis/dodo/internal/auth"
+	"github.com/mtzanidakis/dodo/internal/dateformat"
 	"github.com/mtzanidakis/dodo/internal/i18n"
 	"github.com/mtzanidakis/dodo/internal/models"
 	"github.com/mtzanidakis/dodo/internal/store"
@@ -105,13 +106,26 @@ type pageData struct {
 	NextCursor string
 	Calendar   *calendarView
 	Freqs      []freqOption
+	// DueInput is "datetime-local" while the user keeps the browser default
+	// and "text" once they pick a pattern, since a native picker always
+	// renders in the browser's own locale.
+	DueInput       string
+	DuePlaceholder string
+	// DuePattern and DueDOW configure the date picker that enhances the text
+	// box. Empty DuePattern means the native picker is in use and no
+	// enhancement should run.
+	DuePattern string
+	DueDOW     string // localized weekday initials, Monday first, comma separated
 
 	// tokens page
 	Tokens   []tokenView
 	NewToken string
 
 	// account page
-	Telegram *telegramView
+	Telegram         *telegramView
+	DateFormats      []dateFormatOption
+	DateFormatCustom string
+	DateFormatSelect string
 }
 
 func colorScheme(theme models.Theme) string {
@@ -161,7 +175,7 @@ func (h *Handler) base(w http.ResponseWriter, r *http.Request, u *models.User, t
 		scheme = colorScheme(u.Theme)
 		cls = themeClass(u.Theme)
 	}
-	return pageData{
+	pd := pageData{
 		Title:       title,
 		Lang:        lang,
 		CSRF:        csrfOrNew(w, r),
@@ -169,6 +183,23 @@ func (h *Handler) base(w http.ResponseWriter, r *http.Request, u *models.User, t
 		ThemeClass:  cls,
 		Nav:         nav,
 		User:        u,
+		DueInput:    "datetime-local",
+	}
+	if u != nil && u.DateFormat != dateformat.Auto {
+		pd.DueInput = "text"
+		pd.DuePattern = dateformat.WithTime(u.DateFormat)
+		pd.DuePlaceholder = dateformat.Placeholder(pd.DuePattern)
+		pd.DueDOW = strings.Join(dowLabels(lang), ",")
+	}
+	return pd
+}
+
+// dowLabels returns the weekday headings used by the calendar view and the
+// date picker, Monday first.
+func dowLabels(lang string) []string {
+	return []string{
+		i18n.T("dow.mon", lang), i18n.T("dow.tue", lang), i18n.T("dow.wed", lang),
+		i18n.T("dow.thu", lang), i18n.T("dow.fri", lang), i18n.T("dow.sat", lang), i18n.T("dow.sun", lang),
 	}
 }
 
