@@ -282,3 +282,129 @@ func TestCLIInitRejectsInvalidDateFormat(t *testing.T) {
 		t.Fatalf("config must not be written for an invalid pattern")
 	}
 }
+
+// prettyRun runs a command with --pretty enabled and the given date pattern,
+// returning stdout and stderr separately.
+func prettyRun(t *testing.T, e *cliEnv, dateFormat string, args ...string) (string, string, int) {
+	t.Helper()
+	cfg := clientconfig.ClientConfig{
+		URL: e.server.URL, Token: e.token, LogLevel: "info",
+		Timezone: "Europe/Athens", DateFormat: dateFormat,
+	}
+	app := cli.New(cfg, true)
+	out, errBuf := &bytes.Buffer{}, &bytes.Buffer{}
+	app.Out, app.Err = out, errBuf
+	code := app.Run(args)
+	return out.String(), errBuf.String(), code
+}
+
+func TestPrettyTaskListUsesDateFormatAndColumns(t *testing.T) {
+	e := newCLIEnv(t)
+	cfg := clientconfig.ClientConfig{URL: e.server.URL, Token: e.token, LogLevel: "info", Timezone: "Europe/Athens"}
+	app := cli.New(cfg, false)
+	app.Out = &bytes.Buffer{}
+	if code := app.Run([]string{"tasks", "create", "--title", "Pay rent", "--due", "2026-08-05T17:30:00+03:00", "--priority", "high"}); code != 0 {
+		t.Fatalf("create exit %d", code)
+	}
+
+	out, _, code := prettyRun(t, e, "DD/MM/YYYY", "tasks", "list", "--filter", "pending")
+	if code != 0 {
+		t.Fatalf("list exit %d: %s", code, out)
+	}
+	for _, want := range []string{"DUE", "STATUS", "PRIORITY", "TITLE", "05/08/2026 17:30", "Pay rent", "high"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("pretty list missing %q:\n%s", want, out)
+		}
+	}
+	// The layout is for humans; it must not be JSON.
+	if strings.HasPrefix(strings.TrimSpace(out), "{") {
+		t.Fatalf("pretty list still emitted JSON:\n%s", out)
+	}
+}
+
+func TestPrettyDoesNotChangeJSONOutput(t *testing.T) {
+	e := newCLIEnv(t)
+	cfg := clientconfig.ClientConfig{URL: e.server.URL, Token: e.token, LogLevel: "info", Timezone: "Europe/Athens"}
+	app := cli.New(cfg, false)
+	buf := &bytes.Buffer{}
+	app.Out = buf
+	if code := app.Run([]string{"tasks", "create", "--title", "Agent task", "--due", "2026-08-05T17:30:00+03:00"}); code != 0 {
+		t.Fatalf("create exit %d", code)
+	}
+	buf.Reset()
+	if code := app.Run([]string{"tasks", "list", "--filter", "pending"}); code != 0 {
+		t.Fatalf("list exit %d", code)
+	}
+	// Without --pretty the agent contract is unchanged: parseable JSON with
+	// RFC3339 timestamps.
+	var list struct {
+		Items []map[string]any `json:"items"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &list); err != nil {
+		t.Fatalf("default output must stay JSON: %v (%s)", err, buf.String())
+	}
+	if len(list.Items) != 1 {
+		t.Fatalf("expected 1 task, got %d", len(list.Items))
+	}
+	if _, err := time.Parse(time.RFC3339, list.Items[0]["due_at"].(string)); err != nil {
+		t.Fatalf("due_at must stay RFC3339: %v", err)
+	}
+}
+
+func TestPrettySingleTaskAndEmptyList(t *testing.T) {
+	e := newCLIEnv(t)
+	out, _, code := prettyRun(t, e, "YYYY-MM-DD", "tasks", "create",
+		"--title", "One off", "--due", "2026-08-05T17:30:00+03:00", "--priority", "low", "--desc", "with a note")
+	if code != 0 {
+		t.Fatalf("create exit %d: %s", code, out)
+	}
+	for _, want := range []string{"Title", "One off", "Due", "2026-08-05 17:30", "Priority", "low", "with a note"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("pretty task missing %q:\n%s", want, out)
+		}
+	}
+
+	out, _, code = prettyRun(t, e, "YYYY-MM-DD", "completions", "list")
+	if code != 0 {
+		t.Fatalf("completions exit %d", code)
+	}
+	if !strings.Contains(out, "No results.") {
+		t.Fatalf("empty list should say so, got:\n%s", out)
+	}
+}
+
+func TestPrettyErrorsAreOneReadableLine(t *testing.T) {
+	e := newCLIEnv(t)
+	out, errOut, code := prettyRun(t, e, "DD/MM/YYYY", "tasks", "get", "missing-id")
+	if code != cli.ExitNotFound {
+		t.Fatalf("exit %d, want %d", code, cli.ExitNotFound)
+	}
+	if out != "" {
+		t.Fatalf("failures must not write to stdout, got %q", out)
+	}
+	lines := strings.Split(strings.TrimSpace(errOut), "\n")
+	if len(lines) != 1 {
+		t.Fatalf("expected a single error line, got %d:\n%s", len(lines), errOut)
+	}
+	if !strings.HasPrefix(lines[0], "error: ") || strings.Contains(lines[0], "{") {
+		t.Fatalf("error line should be plain text, got %q", lines[0])
+	}
+}
+
+func TestErrorsStayJSONWithoutPretty(t *testing.T) {
+	e := newCLIEnv(t)
+	cfg := clientconfig.ClientConfig{URL: e.server.URL, Token: e.token, LogLevel: "info"}
+	app := cli.New(cfg, false)
+	errBuf := &bytes.Buffer{}
+	app.Out, app.Err = &bytes.Buffer{}, errBuf
+	if code := app.Run([]string{"tasks", "get", "missing-id"}); code != cli.ExitNotFound {
+		t.Fatalf("exit %d", code)
+	}
+	var env map[string]any
+	if err := json.Unmarshal([]byte(strings.TrimSpace(errBuf.String())), &env); err != nil {
+		t.Fatalf("agent error output must stay JSON: %v (%q)", err, errBuf.String())
+	}
+	if _, ok := env["error"]; !ok {
+		t.Fatalf("expected an error envelope, got %v", env)
+	}
+}

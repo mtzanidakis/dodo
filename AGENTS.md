@@ -84,6 +84,8 @@ Also `go vet ./...` and `gofmt -l .` (must be empty).
 
 `date_format` (optional token pattern) is resolved the same way and handled by `internal/dateformat`. `dodo-cli init` accepts `--date-format`.
 
+`--pretty` swaps the CLI's JSON for aligned human output (`internal/cli/pretty.go`). Every command routes its success body through `a.emit(resource, body)` and its failures through `a.eprintErr`; both are no-ops without the flag, so the agent contract (JSON on stdout, RFC3339, error envelopes on stderr) is untouched. A new command must pick a `resource` rather than calling `emitRaw` directly.
+
 ## Quickstart (local)
 
 ```
