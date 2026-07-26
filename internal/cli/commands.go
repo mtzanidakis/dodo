@@ -60,6 +60,15 @@ func (a *App) cmdInit(args []string) int {
 		a.eprintln(err)
 		return ExitError
 	}
+	if a.pretty {
+		a.fields([][2]string{
+			{"Config", dash(path)},
+			{"Url", dash(cfg.URL)},
+			{"Timezone", dash(cfg.Timezone)},
+			{"Date format", dash(cfg.DateFormat)},
+		})
+		return ExitOK
+	}
 	a.emitJSON(map[string]any{"ok": true, "url": cfg.URL, "config": path})
 	return ExitOK
 }
@@ -77,7 +86,7 @@ func (a *App) cmdMe() int {
 	if !ok {
 		return failFromStatus(status)
 	}
-	a.emitRaw(b)
+	a.emit(resUser, b)
 	return ExitOK
 }
 
@@ -172,7 +181,7 @@ func (a *App) tasksList(args []string) int {
 	if !ok {
 		return failFromStatus(status)
 	}
-	a.emitRaw(b)
+	a.emit(resTaskList, b)
 	return ExitOK
 }
 
@@ -188,14 +197,15 @@ func (a *App) tasksGet(args []string) int {
 	}
 	b, ok := a.handleResponse(status, body, 0)
 	if !ok {
+		// handleResponse already reported the server's error envelope; adding
+		// a second one here only printed the same failure twice.
 		if status == 404 {
-			a.eprintln(`{"error":{"code":"not_found"}}`)
 			return ExitNotFound
 		}
 		return failFromStatus(status)
 	}
 	_ = b
-	a.emitRaw(body)
+	a.emit(resTask, body)
 	return ExitOK
 }
 
@@ -209,7 +219,7 @@ func (a *App) tasksCreate(args []string) int {
 	repeatEnd := fs.String("repeat-end", "", "")
 	_ = fs.Parse(args)
 	if *title == "" || *due == "" {
-		a.eprintln(`{"error":{"code":"validation","message":"title and due required"}}`)
+		a.eprintErr([]byte(`{"error":{"code":"validation","message":"title and due required"}}`))
 		return ExitUsage
 	}
 	body := map[string]any{"title": *title, "due_at": a.normalizeDue(*due), "priority": *priority, "description": *desc}
@@ -243,7 +253,7 @@ func (a *App) tasksCreate(args []string) int {
 	if _, ok := a.handleResponse(status, respBody, 0); !ok {
 		return failFromStatus(status)
 	}
-	a.emitRaw(respBody)
+	a.emit(resTask, respBody)
 	return ExitOK
 }
 
@@ -287,7 +297,7 @@ func (a *App) tasksUpdate(args []string) int {
 		}
 		return failFromStatus(status)
 	}
-	a.emitRaw(respBody)
+	a.emit(resTask, respBody)
 	return ExitOK
 }
 
@@ -304,7 +314,7 @@ func (a *App) tasksComplete(args []string) int {
 	if _, ok := a.handleResponse(status, body, 0); !ok {
 		return failFromStatus(status)
 	}
-	a.emitRaw(body)
+	a.emit(resTask, body)
 	return ExitOK
 }
 
@@ -317,7 +327,7 @@ func (a *App) tasksSnooze(args []string) int {
 	until := fs.String("until", "", "")
 	_ = fs.Parse(args[1:])
 	if *until == "" {
-		a.eprintln(`{"error":{"code":"validation","message":"--until required"}}`)
+		a.eprintErr([]byte(`{"error":{"code":"validation","message":"--until required"}}`))
 		return ExitUsage
 	}
 	status, body, err := a.request("POST", "/api/v1/tasks/"+args[0]+"/snooze", map[string]any{"until": a.normalizeDue(*until)})
@@ -328,7 +338,7 @@ func (a *App) tasksSnooze(args []string) int {
 	if _, ok := a.handleResponse(status, body, 0); !ok {
 		return failFromStatus(status)
 	}
-	a.emitRaw(body)
+	a.emit(resTask, body)
 	return ExitOK
 }
 
@@ -348,7 +358,7 @@ func (a *App) tasksDelete(args []string) int {
 		}
 		return failFromStatus(status)
 	}
-	a.emitRaw(body)
+	a.emit(resOK, body)
 	return ExitOK
 }
 
@@ -379,7 +389,7 @@ func (a *App) cmdCompletions(args []string) int {
 	if _, ok := a.handleResponse(status, body, 0); !ok {
 		return failFromStatus(status)
 	}
-	a.emitRaw(body)
+	a.emit(resCompletions, body)
 	return ExitOK
 }
 
@@ -400,14 +410,14 @@ func (a *App) cmdTokens(args []string) int {
 		if _, ok := a.handleResponse(status, body, 0); !ok {
 			return failFromStatus(status)
 		}
-		a.emitRaw(body)
+		a.emit(resTokenList, body)
 		return ExitOK
 	case args[0] == "create":
 		fs := flag.NewFlagSet("tokens create", flag.ContinueOnError)
 		name := fs.String("name", "", "")
 		_ = fs.Parse(args[1:])
 		if *name == "" {
-			a.eprintln(`{"error":{"code":"validation","message":"--name required"}}`)
+			a.eprintErr([]byte(`{"error":{"code":"validation","message":"--name required"}}`))
 			return ExitUsage
 		}
 		status, body, err := a.request("POST", "/api/v1/tokens", map[string]any{"name": *name})
@@ -418,7 +428,7 @@ func (a *App) cmdTokens(args []string) int {
 		if _, ok := a.handleResponse(status, body, 0); !ok {
 			return failFromStatus(status)
 		}
-		a.emitRaw(body)
+		a.emit(resToken, body)
 		return ExitOK
 	case args[0] == "revoke":
 		if len(args) < 2 {
@@ -436,7 +446,7 @@ func (a *App) cmdTokens(args []string) int {
 			}
 			return failFromStatus(status)
 		}
-		a.emitRaw(body)
+		a.emit(resOK, body)
 		return ExitOK
 	default:
 		return ExitUsage
