@@ -25,10 +25,12 @@ mise run build-server  # build only ./cmd/dodo
 mise run test          # go test -race -covermode=atomic ./...
 mise run lint          # golangci-lint run ./...
 mise run web:build     # build web assets into internal/web/dist
+mise run web:test      # vitest over web/src
 mise run tidy          # go mod tidy
 ```
 
-Always run **lint** and **test** before declaring a task done:
+Always run **lint** and **test** before declaring a task done, plus
+**web:test** when you touch anything under `web/src`:
 
 ```
 mise run lint && mise run test
@@ -123,3 +125,13 @@ Require `ci` (lint, test, build) to pass; require conventional commits; linear h
 
 - In-memory SQLite (`:memory:`) for store tests; `httptest` for api/cli tests; table-driven; `t.Parallel()` where safe (but not in tests that use `t.Setenv`).
 - Aim for >= 85% coverage in `internal/store`, `internal/recurrence`, `internal/auth`, `internal/api`, `internal/scheduler`, `internal/notify`.
+
+### Frontend (vitest + jsdom)
+
+`web/src/*.test.js`, run by `mise run web:test` and the `web-test` CI job.
+
+The browser files are plain classic scripts, not ES modules — there is no bundler and `layout.html` loads them with `<script defer>`. Tests therefore `import` a file for its side effect and read the global it publishes (`globalThis.dodoDateFormat`), so the tested code is byte-identical to the shipped code. Do not add `export` statements to anything under `web/src` unless you also change how `layout.html` loads it.
+
+`dateformat.js` is the browser half of `internal/dateformat` and must agree with it: same tokens, same rejections (including out-of-range days like 31 February). When you change one, change and re-test both.
+
+`picker.test.js` drives the real listeners `app.js` attaches on load, against jsdom. `getBoundingClientRect` returns zeros there, so positioning is not covered — verify layout changes in a browser.

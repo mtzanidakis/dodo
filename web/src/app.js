@@ -133,81 +133,12 @@
   // works and the server parses the submitted string either way, so a parse
   // miss here can only mean the wrong day is highlighted.
 
-  var DP_TOKEN_RE = /YYYY|YY|MMMM|MMM|MM|M|DD|D|HH|mm/g;
-  // English month names, matching what the server renders for MMM/MMMM.
-  var DP_MONTHS = ["January","February","March","April","May","June",
-                   "July","August","September","October","November","December"];
-
-  function dpPad(n) { return (n < 10 ? "0" : "") + n; }
-
-  function dpFormat(d, pattern) {
-    return pattern.replace(DP_TOKEN_RE, function (tok) {
-      switch (tok) {
-        case "YYYY": return String(d.getFullYear());
-        case "YY":   return String(d.getFullYear()).slice(-2);
-        case "MMMM": return DP_MONTHS[d.getMonth()];
-        case "MMM":  return DP_MONTHS[d.getMonth()].slice(0, 3);
-        case "MM":   return dpPad(d.getMonth() + 1);
-        case "M":    return String(d.getMonth() + 1);
-        case "DD":   return dpPad(d.getDate());
-        case "D":    return String(d.getDate());
-        case "HH":   return dpPad(d.getHours());
-        case "mm":   return dpPad(d.getMinutes());
-        default:     return tok;
-      }
-    });
-  }
-
-  // dpParse is the reverse of dpFormat, returning null when the text does not
-  // match the pattern. It mirrors internal/dateformat.Parse.
-  function dpParse(s, pattern) {
-    if (!s) return null;
-    var tokens = [];
-    var re = "";
-    var last = 0;
-    DP_TOKEN_RE.lastIndex = 0;
-    var m;
-    while ((m = DP_TOKEN_RE.exec(pattern)) !== null) {
-      if (m.index > last) re += pattern.slice(last, m.index).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      tokens.push(m[0]);
-      switch (m[0]) {
-        case "YYYY": re += "(\\d{4})"; break;
-        case "MMMM": re += "(" + DP_MONTHS.join("|") + ")"; break;
-        case "MMM":  re += "(" + DP_MONTHS.map(function (x) { return x.slice(0, 3); }).join("|") + ")"; break;
-        case "M": case "D": re += "(\\d{1,2})"; break;
-        default: re += "(\\d{2})"; break;
-      }
-      last = m.index + m[0].length;
-    }
-    if (last < pattern.length) re += pattern.slice(last).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-    var match = new RegExp("^" + re + "$", "i").exec(s.trim());
-    if (!match) return null;
-
-    var year = null, month = 0, day = 1, hour = 0, minute = 0;
-    for (var i = 0; i < tokens.length; i++) {
-      var v = match[i + 1];
-      switch (tokens[i]) {
-        case "YYYY": year = parseInt(v, 10); break;
-        case "YY":   year = 2000 + parseInt(v, 10); break;
-        case "MMMM": case "MMM":
-          month = DP_MONTHS.findIndex(function (name) {
-            return name.slice(0, v.length).toLowerCase() === v.toLowerCase();
-          });
-          if (month < 0) return null;
-          break;
-        case "MM": case "M": month = parseInt(v, 10) - 1; break;
-        case "DD": case "D": day = parseInt(v, 10); break;
-        case "HH": hour = parseInt(v, 10); break;
-        case "mm": minute = parseInt(v, 10); break;
-      }
-    }
-    if (year === null) return null;
-    var d = new Date(year, month, day, hour, minute, 0, 0);
-    // Reject dates the calendar rolled over (31 February and friends).
-    if (d.getFullYear() !== year || d.getMonth() !== month || d.getDate() !== day) return null;
-    return d;
-  }
+  // dateformat.js publishes this global and is loaded before us.
+  var DF = window.dodoDateFormat;
+  function dpPad(n) { return DF.pad(n); }
+  function dpFormat(d, pattern) { return DF.format(d, pattern); }
+  function dpParse(s, pattern) { return DF.parse(s, pattern); }
+  function dpMonthName(i) { return DF.MONTHS[i]; }
 
   function dpSameDay(a, b) {
     return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
@@ -249,7 +180,7 @@
     var st = dpOpen;
     var body = st.popup.querySelector("[data-dp-body]");
     var title = st.popup.querySelector("[data-dp-month]");
-    title.textContent = DP_MONTHS[st.view.getMonth()] + " " + st.view.getFullYear();
+    title.textContent = dpMonthName(st.view.getMonth()) + " " + st.view.getFullYear();
     body.textContent = "";
 
     st.dow.forEach(function (name) {
@@ -295,7 +226,7 @@
 
   function dpBuild(input) {
     var pattern = input.getAttribute("data-datepicker");
-    var hasTime = /HH|mm/.test(pattern);
+    var hasTime = DF.hasTime(pattern);
     var current = dpParse(input.value, pattern);
     var base = current || new Date();
 

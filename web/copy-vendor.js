@@ -44,6 +44,12 @@ fs.writeFileSync(path.join(out, "vendor.js"), vendorJS);
 const appCSS = fs.readFileSync(path.join(srcDir, "app.css"), "utf8");
 fs.writeFileSync(path.join(out, "app.css"), appCSS);
 
+// dateformat.js ships as its own classic script so the test suite can import
+// exactly the file the browser runs. app.js reads the global it publishes, so
+// it must be loaded first (see templates/layout.html).
+const dateFormatJS = fs.readFileSync(path.join(srcDir, "dateformat.js"), "utf8");
+fs.writeFileSync(path.join(out, "dateformat.js"), dateFormatJS);
+
 const appJS = fs.readFileSync(path.join(srcDir, "app.js"), "utf8");
 fs.writeFileSync(path.join(out, "app.js"), appJS);
 
@@ -54,10 +60,11 @@ const hash = crypto
   .createHash("sha256")
   .update(vendorJS)
   .update(appCSS)
+  .update(dateFormatJS)
   .update(appJS)
   .update(logo)
   .digest("hex")
   .slice(0, 12);
 fs.writeFileSync(path.join(out, "version.txt"), hash + "\n");
 
-console.log("dist built:", "version=" + hash, "(vendor.js, app.css, app.js, logo.png, version.txt)");
+console.log("dist built:", "version=" + hash, "(vendor.js, app.css, dateformat.js, app.js, logo.png, version.txt)");

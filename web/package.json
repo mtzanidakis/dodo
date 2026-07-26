@@ -3,10 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "node copy-vendor.js"
+    "build": "node copy-vendor.js",
+    "test": "vitest run"
   },
   "dependencies": {
-    "htmx.org": "2.0.10",
-    "alpinejs": "3.15.12"
+    "alpinejs": "3.15.12",
+    "htmx.org": "2.0.10"
+  },
+  "devDependencies": {
+    "jsdom": "29.1.1",
+    "vitest": "4.1.10"
   }
 }
