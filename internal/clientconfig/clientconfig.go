@@ -17,6 +17,10 @@ type ClientConfig struct {
 	// output (an IANA name like "Europe/Athens", or "UTC"). When empty the
 	// CLI derives it from the user's profile, like the web UI.
 	Timezone string `json:"timezone,omitempty"`
+	// DateFormat optionally pins how dates are rendered and read back (a
+	// token pattern like "DD/MM/YYYY"). When empty the client derives it from
+	// the user's profile, like the web UI.
+	DateFormat string `json:"date_format,omitempty"`
 }
 
 type Flags struct {

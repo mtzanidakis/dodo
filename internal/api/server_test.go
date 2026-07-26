@@ -328,3 +328,49 @@ func TestLoginSession(t *testing.T) {
 		t.Fatalf("bad login: %d", rec.Code)
 	}
 }
+
+func TestProfileDateFormat(t *testing.T) {
+	ts := newTestServer(t)
+
+	rec, b := ts.do(t, http.MethodGet, "/api/v1/me", ts.tokenA, "", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("me: %d %s", rec.Code, b)
+	}
+	var me struct {
+		DateFormat string `json:"date_format"`
+	}
+	if err := json.Unmarshal(b, &me); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if me.DateFormat != "" {
+		t.Fatalf("new user should default to the built-in format, got %q", me.DateFormat)
+	}
+
+	rec, b = ts.do(t, http.MethodPatch, "/api/v1/me", ts.tokenA, "", map[string]any{"date_format": "DD/MM/YYYY"})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("patch: %d %s", rec.Code, b)
+	}
+	if err := json.Unmarshal(b, &me); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if me.DateFormat != "DD/MM/YYYY" {
+		t.Fatalf("date_format = %q, want DD/MM/YYYY", me.DateFormat)
+	}
+
+	rec, b = ts.do(t, http.MethodPatch, "/api/v1/me", ts.tokenA, "", map[string]any{"date_format": "not a pattern"})
+	if rec.Code != http.StatusUnprocessableEntity && rec.Code != http.StatusBadRequest {
+		t.Fatalf("invalid pattern should be rejected, got %d %s", rec.Code, b)
+	}
+
+	// The rejected value must not have overwritten the stored one.
+	rec, b = ts.do(t, http.MethodGet, "/api/v1/me", ts.tokenA, "", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("me: %d", rec.Code)
+	}
+	if err := json.Unmarshal(b, &me); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if me.DateFormat != "DD/MM/YYYY" {
+		t.Fatalf("date_format after a rejected patch = %q, want DD/MM/YYYY", me.DateFormat)
+	}
+}

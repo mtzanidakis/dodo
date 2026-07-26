@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/mtzanidakis/dodo/internal/dateformat"
 )
 
 // textField is a minimal single-line text input. bubbles/textinput is not a
@@ -111,8 +113,9 @@ func (f *taskForm) activeInput() *textField {
 }
 
 // validate builds the API create arguments from the form, resolving the due
-// time via parseHumanTime in loc (the user's display zone).
-func (f *taskForm) validate(loc *time.Location) (title, due, priority, desc string, err error) {
+// time via parseHumanTime in loc (the user's display zone) and df (their date
+// pattern).
+func (f *taskForm) validate(loc *time.Location, df string) (title, due, priority, desc string, err error) {
 	title = strings.TrimSpace(f.title.String())
 	if title == "" {
 		return "", "", "", "", errors.New("title is required")
@@ -121,7 +124,7 @@ func (f *taskForm) validate(loc *time.Location) (title, due, priority, desc stri
 	if dueRaw == "" {
 		return "", "", "", "", errors.New("due date is required")
 	}
-	t, err := parseHumanTime(dueRaw, loc)
+	t, err := parseHumanTime(dueRaw, loc, df)
 	if err != nil {
 		return "", "", "", "", err
 	}
@@ -159,13 +162,21 @@ func nextStatus(s string) string { return advanceCycle(statusCycle, s) }
 func nextPeriod(p string) string { return advanceCycle(periodCycle, p) }
 
 // parseHumanTime is adapted from internal/cli; it accepts a handful of human
-// friendly forms ("now", "now+2h", "tomorrow 10:00") plus common layouts.
-func parseHumanTime(s string, loc *time.Location) (time.Time, error) {
+// friendly forms ("now", "now+2h", "tomorrow 10:00"), the user's own date
+// pattern when they have one, plus common layouts.
+func parseHumanTime(s string, loc *time.Location, df string) (time.Time, error) {
 	if s == "" {
 		return time.Time{}, errors.New("empty time")
 	}
 	if loc == nil {
 		loc = time.UTC
+	}
+	if df != dateformat.Auto {
+		for _, pattern := range []string{dateformat.WithTime(df), df} {
+			if t, err := dateformat.Parse(s, pattern, loc); err == nil {
+				return t, nil
+			}
+		}
 	}
 	now := time.Now().In(loc)
 	switch {

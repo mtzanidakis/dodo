@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/mtzanidakis/dodo/internal/clientconfig"
+	"github.com/mtzanidakis/dodo/internal/dateformat"
 	"github.com/mtzanidakis/dodo/internal/selfupdate"
 )
 
@@ -35,6 +36,11 @@ type App struct {
 
 	loc         *time.Location // display zone for timestamps; resolved lazily
 	locResolved bool
+	df          string // display date pattern; resolved lazily
+	dfResolved  bool
+
+	profileCache cliProfile
+	profileDone  bool
 }
 
 func New(cfg clientconfig.ClientConfig, pretty bool) *App {
@@ -95,7 +101,7 @@ func (a *App) usage() {
 	_, _ = io.WriteString(a.err, `dodo-cli - todo client for AI agents
 
 Commands:
-  init [--url URL --token TOKEN --timezone IANA]
+  init [--url URL --token TOKEN --timezone IANA --date-format PATTERN]
   me
   tasks list [--filter=pending|completed|all] [--period=all|today|week|month] [--priority] [--from] [--to] [--limit] [--cursor]
   tasks get <id>
@@ -245,20 +251,55 @@ func (a *App) displayLoc() *time.Location {
 	return a.loc
 }
 
+// displayFormat resolves the date pattern used to read dates typed on the
+// command line: an explicit config pattern wins, then the user's profile
+// pattern, and finally dateformat.Auto (built-in layouts only). The result is
+// cached for the process.
+func (a *App) displayFormat() string {
+	if a.dfResolved {
+		return a.df
+	}
+	a.dfResolved = true
+	for _, df := range []string{strings.TrimSpace(a.cfg.DateFormat), a.profileDateFormat()} {
+		if df != dateformat.Auto && dateformat.Validate(df) == nil {
+			a.df = df
+			return a.df
+		}
+	}
+	return a.df
+}
+
 // profileTimezone fetches the caller's configured timezone from /api/v1/me,
 // returning "" on any error so callers fall back to the host local zone.
 func (a *App) profileTimezone() string {
+	return strings.TrimSpace(a.profile().Timezone)
+}
+
+// profileDateFormat fetches the caller's configured date pattern, returning ""
+// on any error so callers fall back to the built-in layouts.
+func (a *App) profileDateFormat() string {
+	return strings.TrimSpace(a.profile().DateFormat)
+}
+
+type cliProfile struct {
+	Timezone   string `json:"timezone"`
+	DateFormat string `json:"date_format"`
+}
+
+// profile fetches /api/v1/me once per process. Both the zone and the date
+// pattern come from it, and a task command would otherwise pay for two
+// round-trips before sending its actual request.
+func (a *App) profile() cliProfile {
+	if a.profileDone {
+		return a.profileCache
+	}
+	a.profileDone = true
 	status, body, err := a.request("GET", "/api/v1/me", nil)
 	if err != nil || status < 200 || status >= 300 {
-		return ""
+		return a.profileCache
 	}
-	var me struct {
-		Timezone string `json:"timezone"`
-	}
-	if err := json.Unmarshal(body, &me); err != nil {
-		return ""
-	}
-	return strings.TrimSpace(me.Timezone)
+	_ = json.Unmarshal(body, &a.profileCache)
+	return a.profileCache
 }
 
 func (a *App) eprintln(args ...any) {
@@ -285,12 +326,19 @@ func (a *App) handleResponse(status int, body []byte, notFoundCode int) ([]byte,
 
 var _ = errors.New
 
-func parseHumanTime(s string, loc *time.Location) (time.Time, error) {
+func parseHumanTime(s string, loc *time.Location, df string) (time.Time, error) {
 	if s == "" {
 		return time.Time{}, errors.New("empty time")
 	}
 	if loc == nil {
 		loc = time.UTC
+	}
+	if df != dateformat.Auto {
+		for _, pattern := range []string{dateformat.WithTime(df), df} {
+			if t, err := dateformat.Parse(s, pattern, loc); err == nil {
+				return t, nil
+			}
+		}
 	}
 	now := time.Now().In(loc)
 	switch {

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/mtzanidakis/dodo/internal/auth"
+	"github.com/mtzanidakis/dodo/internal/dateformat"
 	"github.com/mtzanidakis/dodo/internal/models"
 )
 
@@ -14,6 +15,7 @@ type updateProfileRequest struct {
 	Timezone    *string `json:"timezone"`
 	Locale      *string `json:"locale"`
 	Theme       *string `json:"theme"`
+	DateFormat  *string `json:"date_format"`
 }
 
 func (s *Server) handleGetProfile(w http.ResponseWriter, r *http.Request) {
@@ -53,6 +55,14 @@ func (s *Server) handleUpdateProfile(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		u.Theme = th
+	}
+	if req.DateFormat != nil {
+		df := strings.TrimSpace(*req.DateFormat)
+		if err := dateformat.Validate(df); err != nil {
+			writeError(w, errors.Join(models.ErrValidation, err))
+			return
+		}
+		u.DateFormat = df
 	}
 	if err := s.store.Users.Update(r.Context(), u); err != nil {
 		writeError(w, err)

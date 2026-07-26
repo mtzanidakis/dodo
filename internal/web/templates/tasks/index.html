@@ -37,7 +37,7 @@
         <input name="title" required placeholder="{{t .Lang "field.title"}}"></label>
       <div class="form-row">
         <label class="field"><span>{{t .Lang "field.due_at"}}</span>
-          <input type="datetime-local" name="due_at" required></label>
+          <input type="{{.DueInput}}" name="due_at" placeholder="{{.DuePlaceholder}}" required></label>
         <label class="field"><span>{{t .Lang "field.priority"}}</span>
           <select name="priority">
             <option value="low">{{t .Lang "priority.low"}}</option>

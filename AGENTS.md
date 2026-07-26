@@ -44,6 +44,7 @@ Also `go vet ./...` and `gofmt -l .` (must be empty).
 - `context.Context` is the first param of every store/handler method.
 - JSON: snake_case struct tags.
 - Datetimes: stored in the DB as `TEXT` RFC3339 **UTC**. Convert to/from the user's timezone only at the API/render edge.
+- Date display: never hardcode a new user-facing date layout. Go through `internal/dateformat` with the user's `date_format` (`""` = the built-in layout), so web, TUI and CLI input stay consistent. Go layout strings are not usable as a user setting — a literal in the pattern silently becomes a format verb.
 - IDs: UUIDv7 strings (`uuid.NewV7()`), `TEXT PRIMARY KEY`.
 - Passwords: minimum 8 characters, enforced everywhere.
 - Per-user data scoping: every store query touching `tasks`, `task_completions`, `api_tokens` (and the `me/*` routes) takes a `userID` and constrains `WHERE user_id = ?`. Body `user_id` fields are ignored. Cross-user `GET/PATCH/DELETE /tasks/{id}` returns **404** (not 403) to avoid leaking existence. All users are equal; there are no roles.
@@ -70,13 +71,16 @@ Also `go vet ./...` and `gofmt -l .` (must be empty).
   "url": "http://localhost:8080",
   "token": "dodo_xxxxxxxxxxxx",
   "log_level": "info",
-  "timezone": "Europe/Athens"
+  "timezone": "Europe/Athens",
+  "date_format": "DD/MM/YYYY"
 }
 ```
 
 `--url` and `--token` flags override the config file. Missing `url`/`token` when an API call is needed -> exit 5.
 
-`timezone` (optional IANA name) is the display zone for rendering timestamps, resolved config -> profile (`/api/v1/me`) -> host local. The CLI rewrites timestamp fields in its JSON output to this zone (still valid RFC3339) and the TUI renders/parses input in it. `dodo-cli init` accepts `--timezone`.
+`timezone` (optional IANA name) is the display zone for rendering timestamps, resolved config -> profile (`/api/v1/me`) -> host local. The CLI rewrites timestamp fields in its JSON output to this zone (still valid RFC3339) and both clients parse input in it. `dodo-cli init` accepts `--timezone`.
+
+`date_format` (optional token pattern) is resolved the same way and handled by `internal/dateformat`. `dodo-cli init` accepts `--date-format`.
 
 ## Quickstart (local)
 

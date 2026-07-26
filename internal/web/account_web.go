@@ -3,10 +3,12 @@ package web
 import (
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/mtzanidakis/dodo/internal/auth"
+	"github.com/mtzanidakis/dodo/internal/dateformat"
 	"github.com/mtzanidakis/dodo/internal/i18n"
 	"github.com/mtzanidakis/dodo/internal/models"
 )
@@ -60,9 +62,52 @@ func (h *Handler) handleAccount(w http.ResponseWriter, r *http.Request) {
 	u := auth.UserFromContext(r.Context())
 	pd := h.base(w, r, u, i18n.T("nav.account", string(u.Locale)), "account")
 	pd.Telegram = telegramViewFor(u)
+	pd.DateFormats, pd.DateFormatSelect, pd.DateFormatCustom = dateFormatOptions(u, time.Now().In(loadLoc(u.Timezone)))
 	pd.Flash = r.URL.Query().Get("ok")
 	pd.Error = r.URL.Query().Get("err")
 	h.render(w, "account/index.html", pd)
+}
+
+// customDateFormat is the sentinel select value that reveals the free-text
+// pattern box. It is never stored.
+const customDateFormat = "custom"
+
+type dateFormatOption struct {
+	Value    string
+	Label    string
+	Selected bool
+}
+
+// dateFormatOptions builds the Date format dropdown. Each preset is labelled
+// with today rendered through it, so the user can pick by looking at a real
+// date instead of decoding tokens. It also returns which option is selected
+// and the pattern to seed the custom box with.
+func dateFormatOptions(u *models.User, now time.Time) (opts []dateFormatOption, selected, custom string) {
+	saved := dateformat.Normalize(u.DateFormat)
+	selected = saved
+	if saved != dateformat.Auto && !slices.Contains(dateformat.Presets, saved) {
+		selected = customDateFormat
+		custom = saved
+	}
+
+	opts = append(opts, dateFormatOption{
+		Value:    dateformat.Auto,
+		Label:    i18n.T("date_format.auto", string(u.Locale)) + " — " + now.Format("Mon 2 Jan 2006"),
+		Selected: selected == dateformat.Auto,
+	})
+	for _, p := range dateformat.Presets {
+		opts = append(opts, dateFormatOption{
+			Value:    p,
+			Label:    p + " — " + dateformat.Render(now, p),
+			Selected: selected == p,
+		})
+	}
+	opts = append(opts, dateFormatOption{
+		Value:    customDateFormat,
+		Label:    i18n.T("date_format.custom", string(u.Locale)),
+		Selected: selected == customDateFormat,
+	})
+	return opts, selected, custom
 }
 
 func telegramViewFor(u *models.User) *telegramView {
@@ -90,6 +135,17 @@ func (h *Handler) handleAccountPost(w http.ResponseWriter, r *http.Request) {
 	}
 	if loc := r.FormValue("locale"); loc == "en" || loc == "el" {
 		u.Locale = models.Locale(loc)
+	}
+	if df, ok := r.Form["date_format"]; ok && len(df) > 0 {
+		pattern := strings.TrimSpace(df[0])
+		if pattern == customDateFormat {
+			pattern = strings.TrimSpace(r.FormValue("date_format_custom"))
+		}
+		if err := dateformat.Validate(pattern); err != nil {
+			http.Redirect(w, r, "/account?err="+url.QueryEscape(i18n.T("date_format.invalid", string(u.Locale))), http.StatusSeeOther)
+			return
+		}
+		u.DateFormat = pattern
 	}
 	switch r.FormValue("theme") {
 	case "light":

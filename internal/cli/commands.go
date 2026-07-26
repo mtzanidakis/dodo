@@ -7,18 +7,22 @@ import (
 	"time"
 
 	"github.com/mtzanidakis/dodo/internal/clientconfig"
+	"github.com/mtzanidakis/dodo/internal/dateformat"
 	"github.com/mtzanidakis/dodo/internal/selfupdate"
 )
 
 // normalizeDue converts a user-supplied due string (RFC3339, "2006-01-02T15:04",
-// or free-form like "tomorrow 10:00", "now+30m") into RFC3339 UTC. Anything
-// parseHumanTime cannot understand is passed through unchanged so the server can
-// report a validation error.
-func normalizeDue(s string) string {
+// the user's own date pattern, or free-form like "tomorrow 10:00", "now+30m")
+// into RFC3339 UTC. Anything parseHumanTime cannot understand is passed through
+// unchanged so the server can report a validation error.
+//
+// Relative forms resolve against the display zone, so "tomorrow 10:00" means
+// 10:00 where the user is, not where the machine is.
+func (a *App) normalizeDue(s string) string {
 	if s == "" {
 		return ""
 	}
-	t, err := parseHumanTime(s, time.Local)
+	t, err := parseHumanTime(s, a.displayLoc(), a.displayFormat())
 	if err != nil {
 		return s
 	}
@@ -30,6 +34,7 @@ func (a *App) cmdInit(args []string) int {
 	url := fs.String("url", "", "api base url")
 	token := fs.String("token", "", "api token")
 	timezone := fs.String("timezone", "", "display timezone (IANA name; default: profile)")
+	dateFormat := fs.String("date-format", "", "date pattern, e.g. DD/MM/YYYY (default: profile)")
 	configPath := fs.String("config", "", "config.json path")
 	_ = fs.Parse(args)
 
@@ -42,6 +47,13 @@ func (a *App) cmdInit(args []string) int {
 	}
 	if *timezone != "" {
 		cfg.Timezone = *timezone
+	}
+	if *dateFormat != "" {
+		if err := dateformat.Validate(*dateFormat); err != nil {
+			a.eprintf("invalid --date-format %q: %v\n", *dateFormat, err)
+			return ExitUsage
+		}
+		cfg.DateFormat = *dateFormat
 	}
 	path := *configPath
 	if err := clientconfig.Write(cfg, path); err != nil {
@@ -200,7 +212,7 @@ func (a *App) tasksCreate(args []string) int {
 		a.eprintln(`{"error":{"code":"validation","message":"title and due required"}}`)
 		return ExitUsage
 	}
-	body := map[string]any{"title": *title, "due_at": normalizeDue(*due), "priority": *priority, "description": *desc}
+	body := map[string]any{"title": *title, "due_at": a.normalizeDue(*due), "priority": *priority, "description": *desc}
 	if *repeat != "" {
 		parts := strings.SplitN(*repeat, ":", 4)
 		if len(parts) >= 1 {
@@ -252,7 +264,7 @@ func (a *App) tasksUpdate(args []string) int {
 		body["title"] = *title
 	}
 	if *due != "" {
-		body["due_at"] = normalizeDue(*due)
+		body["due_at"] = a.normalizeDue(*due)
 	}
 	if *priority != "" {
 		body["priority"] = *priority
@@ -308,7 +320,7 @@ func (a *App) tasksSnooze(args []string) int {
 		a.eprintln(`{"error":{"code":"validation","message":"--until required"}}`)
 		return ExitUsage
 	}
-	status, body, err := a.request("POST", "/api/v1/tasks/"+args[0]+"/snooze", map[string]any{"until": *until})
+	status, body, err := a.request("POST", "/api/v1/tasks/"+args[0]+"/snooze", map[string]any{"until": a.normalizeDue(*until)})
 	if err != nil {
 		a.eprintln(err)
 		return ExitError

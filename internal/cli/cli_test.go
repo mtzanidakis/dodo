@@ -7,6 +7,8 @@ import (
 	"io"
 	"log/slog"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -231,3 +233,52 @@ func TestCLIMissingAuth(t *testing.T) {
 }
 
 var _ io.Reader = strings.NewReader("")
+
+func TestCLIAcceptsConfiguredDateFormat(t *testing.T) {
+	e := newCLIEnv(t)
+	// The config pattern is what the user types; the API contract on the wire
+	// stays RFC3339.
+	cfg := clientconfig.ClientConfig{
+		URL: e.server.URL, Token: e.token, LogLevel: "info",
+		Timezone: "Europe/Athens", DateFormat: "DD/MM/YYYY",
+	}
+	app := cli.New(cfg, false)
+	buf := &bytes.Buffer{}
+	app.Out = buf
+	if code := app.Run([]string{"tasks", "create", "--title", "Typed", "--due", "12/07/2026 09:00"}); code != 0 {
+		t.Fatalf("create exit %d: %s", code, buf.String())
+	}
+
+	var created map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &created); err != nil {
+		t.Fatalf("decode: %v (%s)", err, buf.String())
+	}
+	got, _ := created["due_at"].(string)
+	parsed, err := time.Parse(time.RFC3339, got)
+	if err != nil {
+		t.Fatalf("due_at %q is not RFC3339: %v", got, err)
+	}
+	loc, err := time.LoadLocation("Europe/Athens")
+	if err != nil {
+		t.Fatalf("load zone: %v", err)
+	}
+	if want := time.Date(2026, 7, 12, 9, 0, 0, 0, loc); !parsed.Equal(want) {
+		t.Fatalf("due_at = %v, want %v", parsed, want)
+	}
+}
+
+func TestCLIInitRejectsInvalidDateFormat(t *testing.T) {
+	e := newCLIEnv(t)
+	path := filepath.Join(t.TempDir(), "config.json")
+	cfg := clientconfig.ClientConfig{URL: e.server.URL, Token: e.token, LogLevel: "info"}
+	app := cli.New(cfg, false)
+	errBuf := &bytes.Buffer{}
+	app.Err = errBuf
+	app.Out = &bytes.Buffer{}
+	if code := app.Run([]string{"init", "--date-format", "nonsense", "--config", path}); code != cli.ExitUsage {
+		t.Fatalf("init exit %d, want %d", code, cli.ExitUsage)
+	}
+	if _, err := os.Stat(path); err == nil {
+		t.Fatalf("config must not be written for an invalid pattern")
+	}
+}

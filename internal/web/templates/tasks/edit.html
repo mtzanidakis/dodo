@@ -8,7 +8,7 @@
       <input name="title" value="{{$t.Title}}" required></label>
     <div class="form-row">
       <label class="field"><span>{{t .Lang "field.due_at"}}</span>
-        <input type="datetime-local" name="due_at" value="{{$t.DueLocal}}" required></label>
+        <input type="{{.DueInput}}" name="due_at" value="{{$t.DueLocal}}" placeholder="{{.DuePlaceholder}}" required></label>
       <label class="field"><span>{{t .Lang "field.priority"}}</span>
         <select name="priority">
           <option value="low" {{if eq (printf "%s" $t.Priority) "low"}}selected{{end}}>{{t .Lang "priority.low"}}</option>

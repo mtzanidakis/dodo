@@ -13,6 +13,7 @@ type userDTO struct {
 	Timezone            string  `json:"timezone"`
 	Locale              string  `json:"locale"`
 	Theme               string  `json:"theme"`
+	DateFormat          string  `json:"date_format"`
 	TelegramConfigured  bool    `json:"telegram_configured"`
 	TelegramLinked      bool    `json:"telegram_linked"`
 	TelegramBotUsername *string `json:"telegram_bot_username,omitempty"`
@@ -28,6 +29,7 @@ func toUserDTO(u *models.User) userDTO {
 		Timezone:           u.Timezone,
 		Locale:             string(u.Locale),
 		Theme:              string(u.Theme),
+		DateFormat:         u.DateFormat,
 		TelegramConfigured: u.TelegramEnabled(),
 		TelegramLinked:     u.TelegramLinked(),
 		CreatedAt:          u.CreatedAt.UTC().Format(time.RFC3339),

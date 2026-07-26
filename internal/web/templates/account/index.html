@@ -7,7 +7,7 @@
 
   <div class="card panel">
     <h2>{{t .Lang "account.profile"}}</h2>
-    <form method="POST" action="/account">
+    <form method="POST" action="/account" x-data="{ dateFormat: '{{.DateFormatSelect}}' }">
       <input type="hidden" name="_csrf" value="{{.CSRF}}">
       <label class="field"><span>{{t .Lang "field.display_name"}}</span>
         <input name="display_name" value="{{.User.DisplayName}}"></label>
@@ -21,6 +21,14 @@
             <option value="dark" {{if eq (printf "%s" .User.Theme) "dark"}}selected{{end}}>{{t .Lang "theme.dark"}}</option>
           </select></label>
       </div>
+      <label class="field"><span>{{t .Lang "field.date_format"}}</span>
+        <select name="date_format" x-model="dateFormat">
+          {{range .DateFormats}}<option value="{{.Value}}" {{if .Selected}}selected{{end}}>{{.Label}}</option>{{end}}
+        </select></label>
+      <label class="field" x-show="dateFormat === 'custom'" x-cloak>
+        <span>{{t .Lang "field.date_format_custom"}}</span>
+        <input name="date_format_custom" value="{{.DateFormatCustom}}" placeholder="DD.MM.YYYY" autocomplete="off">
+        <small class="hint">{{t .Lang "date_format.tokens"}}</small></label>
       <div class="form-actions"><button class="btn btn-primary">{{t .Lang "action.save"}}</button></div>
     </form>
   </div>

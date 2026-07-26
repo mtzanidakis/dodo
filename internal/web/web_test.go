@@ -335,3 +335,154 @@ func TestCSRFRejectsMissingToken(t *testing.T) {
 		t.Fatalf("expected 403 without csrf token, got %d", rec.Code)
 	}
 }
+
+func TestDueInputIsNativePickerByDefault(t *testing.T) {
+	mux, _, _, session := newWebEnv(t)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	withSession(req, session)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if body := rec.Body.String(); !strings.Contains(body, `type="datetime-local" name="due_at"`) {
+		t.Fatalf("default due field should stay a native picker: %s", body)
+	}
+}
+
+func TestDateFormatChangesRenderingAndDueInput(t *testing.T) {
+	mux, st, u, session := newWebEnv(t)
+	loc, _ := time.LoadLocation(u.Timezone)
+	due := time.Date(2026, 7, 5, 9, 30, 0, 0, loc)
+	if err := st.Tasks.Create(context.Background(), &models.Task{
+		UserID: u.ID, Title: "Formatted", Priority: models.PriorityNormal, DueAt: due.UTC(),
+	}); err != nil {
+		t.Fatalf("create task: %v", err)
+	}
+	u.DateFormat = "DD/MM/YYYY"
+	if err := st.Users.Update(context.Background(), u); err != nil {
+		t.Fatalf("update user: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/?period=all", nil)
+	withSession(req, session)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	body := rec.Body.String()
+	if !strings.Contains(body, "05/07/2026") {
+		t.Fatalf("day heading should use the chosen pattern: %s", body)
+	}
+	// A native picker always renders in the browser's locale, so a chosen
+	// pattern must fall back to a text box that speaks that pattern.
+	if !strings.Contains(body, `type="text" name="due_at"`) {
+		t.Fatalf("due field should become a text input: %s", body)
+	}
+	if !strings.Contains(body, `placeholder="dd/mm/yyyy hh:mm"`) {
+		t.Fatalf("due field should hint the pattern: %s", body)
+	}
+}
+
+func TestCreateTaskAcceptsUserDateFormat(t *testing.T) {
+	mux, st, u, session := newWebEnv(t)
+	u.DateFormat = "DD/MM/YYYY"
+	if err := st.Users.Update(context.Background(), u); err != nil {
+		t.Fatalf("update user: %v", err)
+	}
+	csrf := "tok"
+	form := url.Values{
+		"title":    {"Typed date"},
+		"due_at":   {"05/07/2026 09:30"},
+		"priority": {"normal"},
+		"_csrf":    {csrf},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/ui/tasks", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(&http.Cookie{Name: auth.CSRFCookie, Value: csrf})
+	withSession(req, session)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("create: %d %s", rec.Code, rec.Body.String())
+	}
+
+	tasks, _, err := st.Tasks.List(context.Background(), u.ID, models.TaskFilter{Limit: 10})
+	if err != nil || len(tasks) != 1 {
+		t.Fatalf("list: %v (%d tasks)", err, len(tasks))
+	}
+	loc, _ := time.LoadLocation(u.Timezone)
+	if want := time.Date(2026, 7, 5, 9, 30, 0, 0, loc); !tasks[0].DueAt.Equal(want) {
+		t.Fatalf("due = %v, want %v", tasks[0].DueAt, want)
+	}
+}
+
+func TestAccountRejectsInvalidDateFormat(t *testing.T) {
+	mux, st, u, session := newWebEnv(t)
+	csrf := "tok"
+	form := url.Values{
+		"display_name":       {"W"},
+		"timezone":           {u.Timezone},
+		"theme":              {"system"},
+		"date_format":        {"custom"},
+		"date_format_custom": {"nonsense"},
+		"_csrf":              {csrf},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/account", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(&http.Cookie{Name: auth.CSRFCookie, Value: csrf})
+	withSession(req, session)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("post account: %d", rec.Code)
+	}
+	if loc := rec.Header().Get("Location"); !strings.Contains(loc, "err=") {
+		t.Fatalf("expected an error redirect, got %q", loc)
+	}
+	got, err := st.Users.GetByID(context.Background(), u.ID)
+	if err != nil {
+		t.Fatalf("get user: %v", err)
+	}
+	if got.DateFormat != "" {
+		t.Fatalf("invalid pattern must not be stored, got %q", got.DateFormat)
+	}
+}
+
+func TestAccountSavesCustomDateFormat(t *testing.T) {
+	mux, st, u, session := newWebEnv(t)
+	csrf := "tok"
+	form := url.Values{
+		"display_name":       {"W"},
+		"timezone":           {u.Timezone},
+		"theme":              {"system"},
+		"date_format":        {"custom"},
+		"date_format_custom": {"DD.MM.YYYY"},
+		"_csrf":              {csrf},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/account", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(&http.Cookie{Name: auth.CSRFCookie, Value: csrf})
+	withSession(req, session)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("post account: %d", rec.Code)
+	}
+	got, err := st.Users.GetByID(context.Background(), u.ID)
+	if err != nil {
+		t.Fatalf("get user: %v", err)
+	}
+	if got.DateFormat != "DD.MM.YYYY" {
+		t.Fatalf("date_format = %q, want DD.MM.YYYY", got.DateFormat)
+	}
+
+	// The account page must reopen on the custom option with the pattern in
+	// the text box, not silently reset to a preset.
+	req = httptest.NewRequest(http.MethodGet, "/account", nil)
+	withSession(req, session)
+	rec = httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	body := rec.Body.String()
+	if !strings.Contains(body, `x-data="{ dateFormat: 'custom' }"`) {
+		t.Fatalf("account page should preselect custom: %s", body)
+	}
+	if !strings.Contains(body, `value="DD.MM.YYYY"`) {
+		t.Fatalf("account page should seed the custom box: %s", body)
+	}
+}

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/mtzanidakis/dodo/internal/auth"
+	"github.com/mtzanidakis/dodo/internal/dateformat"
 	"github.com/mtzanidakis/dodo/internal/i18n"
 	"github.com/mtzanidakis/dodo/internal/models"
 	"github.com/mtzanidakis/dodo/internal/store"
@@ -105,13 +106,21 @@ type pageData struct {
 	NextCursor string
 	Calendar   *calendarView
 	Freqs      []freqOption
+	// DueInput is "datetime-local" while the user keeps the browser default
+	// and "text" once they pick a pattern, since a native picker always
+	// renders in the browser's own locale.
+	DueInput       string
+	DuePlaceholder string
 
 	// tokens page
 	Tokens   []tokenView
 	NewToken string
 
 	// account page
-	Telegram *telegramView
+	Telegram         *telegramView
+	DateFormats      []dateFormatOption
+	DateFormatCustom string
+	DateFormatSelect string
 }
 
 func colorScheme(theme models.Theme) string {
@@ -161,7 +170,7 @@ func (h *Handler) base(w http.ResponseWriter, r *http.Request, u *models.User, t
 		scheme = colorScheme(u.Theme)
 		cls = themeClass(u.Theme)
 	}
-	return pageData{
+	pd := pageData{
 		Title:       title,
 		Lang:        lang,
 		CSRF:        csrfOrNew(w, r),
@@ -169,7 +178,13 @@ func (h *Handler) base(w http.ResponseWriter, r *http.Request, u *models.User, t
 		ThemeClass:  cls,
 		Nav:         nav,
 		User:        u,
+		DueInput:    "datetime-local",
 	}
+	if u != nil && u.DateFormat != dateformat.Auto {
+		pd.DueInput = "text"
+		pd.DuePlaceholder = dateformat.Placeholder(dateformat.WithTime(u.DateFormat))
+	}
+	return pd
 }
 
 func (h *Handler) Mount(mux *http.ServeMux) {

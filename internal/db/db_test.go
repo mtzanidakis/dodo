@@ -38,19 +38,29 @@ func TestApplyIsIdempotent(t *testing.T) {
 	}
 	defer d.Close()
 
+	countRows := func(when string) int {
+		t.Helper()
+		var n int
+		if err := d.QueryRowContext(ctx, "SELECT COUNT(*) FROM schema_migrations").Scan(&n); err != nil {
+			t.Fatalf("schema_migrations %s: %v", when, err)
+		}
+		return n
+	}
+
 	if err := migrations.Apply(ctx, d); err != nil {
 		t.Fatalf("first apply: %v", err)
+	}
+	// Compare against the first run rather than a hardcoded number, so adding
+	// a migration does not fail a test about idempotency.
+	first := countRows("after first apply")
+	if first == 0 {
+		t.Fatal("first apply recorded no migrations")
 	}
 	if err := migrations.Apply(ctx, d); err != nil {
 		t.Fatalf("second apply: %v", err)
 	}
-
-	var count int
-	if err := d.QueryRowContext(ctx, "SELECT COUNT(*) FROM schema_migrations").Scan(&count); err != nil {
-		t.Fatalf("schema_migrations: %v", err)
-	}
-	if count != 1 {
-		t.Fatalf("expected exactly 1 applied migration after re-apply, got %d", count)
+	if second := countRows("after re-apply"); second != first {
+		t.Fatalf("re-apply changed the applied count: %d -> %d", first, second)
 	}
 }
 
