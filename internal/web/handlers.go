@@ -111,6 +111,11 @@ type pageData struct {
 	// renders in the browser's own locale.
 	DueInput       string
 	DuePlaceholder string
+	// DuePattern and DueDOW configure the date picker that enhances the text
+	// box. Empty DuePattern means the native picker is in use and no
+	// enhancement should run.
+	DuePattern string
+	DueDOW     string // localized weekday initials, Monday first, comma separated
 
 	// tokens page
 	Tokens   []tokenView
@@ -182,9 +187,20 @@ func (h *Handler) base(w http.ResponseWriter, r *http.Request, u *models.User, t
 	}
 	if u != nil && u.DateFormat != dateformat.Auto {
 		pd.DueInput = "text"
-		pd.DuePlaceholder = dateformat.Placeholder(dateformat.WithTime(u.DateFormat))
+		pd.DuePattern = dateformat.WithTime(u.DateFormat)
+		pd.DuePlaceholder = dateformat.Placeholder(pd.DuePattern)
+		pd.DueDOW = strings.Join(dowLabels(lang), ",")
 	}
 	return pd
+}
+
+// dowLabels returns the weekday headings used by the calendar view and the
+// date picker, Monday first.
+func dowLabels(lang string) []string {
+	return []string{
+		i18n.T("dow.mon", lang), i18n.T("dow.tue", lang), i18n.T("dow.wed", lang),
+		i18n.T("dow.thu", lang), i18n.T("dow.fri", lang), i18n.T("dow.sat", lang), i18n.T("dow.sun", lang),
+	}
 }
 
 func (h *Handler) Mount(mux *http.ServeMux) {

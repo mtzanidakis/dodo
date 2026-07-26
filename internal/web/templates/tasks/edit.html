@@ -8,7 +8,9 @@
       <input name="title" value="{{$t.Title}}" required></label>
     <div class="form-row">
       <label class="field"><span>{{t .Lang "field.due_at"}}</span>
-        <input type="{{.DueInput}}" name="due_at" value="{{$t.DueLocal}}" placeholder="{{.DuePlaceholder}}" required></label>
+        <input type="{{.DueInput}}" name="due_at" value="{{$t.DueLocal}}" placeholder="{{.DuePlaceholder}}" required
+          autocomplete="off" data-datepicker="{{.DuePattern}}" data-dow="{{.DueDOW}}"
+          data-dp-today="{{t .Lang "day.today"}}" data-dp-done="{{t .Lang "action.ok"}}"></label>
       <label class="field"><span>{{t .Lang "field.priority"}}</span>
         <select name="priority">
           <option value="low" {{if eq (printf "%s" $t.Priority) "low"}}selected{{end}}>{{t .Lang "priority.low"}}</option>

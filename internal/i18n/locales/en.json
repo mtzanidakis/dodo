@@ -14,6 +14,7 @@
   "action.new_task": "New task",
   "action.load_more": "Load more",
   "action.save": "Save",
+  "action.ok": "OK",
   "action.cancel": "Cancel",
   "confirm.delete": "Delete this task?",
   "view.list": "List",

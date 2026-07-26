@@ -124,6 +124,325 @@
 
   updateNotifyUI();
 
+  // ---- date picker ----------------------------------------------------
+  //
+  // Progressive enhancement for inputs carrying data-datepicker="<pattern>".
+  // A native date picker always renders in the browser's locale, so when the
+  // user has chosen a date format the server sends a text box instead and we
+  // attach this calendar. The text box stays authoritative: typing still
+  // works and the server parses the submitted string either way, so a parse
+  // miss here can only mean the wrong day is highlighted.
+
+  var DP_TOKEN_RE = /YYYY|YY|MMMM|MMM|MM|M|DD|D|HH|mm/g;
+  // English month names, matching what the server renders for MMM/MMMM.
+  var DP_MONTHS = ["January","February","March","April","May","June",
+                   "July","August","September","October","November","December"];
+
+  function dpPad(n) { return (n < 10 ? "0" : "") + n; }
+
+  function dpFormat(d, pattern) {
+    return pattern.replace(DP_TOKEN_RE, function (tok) {
+      switch (tok) {
+        case "YYYY": return String(d.getFullYear());
+        case "YY":   return String(d.getFullYear()).slice(-2);
+        case "MMMM": return DP_MONTHS[d.getMonth()];
+        case "MMM":  return DP_MONTHS[d.getMonth()].slice(0, 3);
+        case "MM":   return dpPad(d.getMonth() + 1);
+        case "M":    return String(d.getMonth() + 1);
+        case "DD":   return dpPad(d.getDate());
+        case "D":    return String(d.getDate());
+        case "HH":   return dpPad(d.getHours());
+        case "mm":   return dpPad(d.getMinutes());
+        default:     return tok;
+      }
+    });
+  }
+
+  // dpParse is the reverse of dpFormat, returning null when the text does not
+  // match the pattern. It mirrors internal/dateformat.Parse.
+  function dpParse(s, pattern) {
+    if (!s) return null;
+    var tokens = [];
+    var re = "";
+    var last = 0;
+    DP_TOKEN_RE.lastIndex = 0;
+    var m;
+    while ((m = DP_TOKEN_RE.exec(pattern)) !== null) {
+      if (m.index > last) re += pattern.slice(last, m.index).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      tokens.push(m[0]);
+      switch (m[0]) {
+        case "YYYY": re += "(\\d{4})"; break;
+        case "MMMM": re += "(" + DP_MONTHS.join("|") + ")"; break;
+        case "MMM":  re += "(" + DP_MONTHS.map(function (x) { return x.slice(0, 3); }).join("|") + ")"; break;
+        case "M": case "D": re += "(\\d{1,2})"; break;
+        default: re += "(\\d{2})"; break;
+      }
+      last = m.index + m[0].length;
+    }
+    if (last < pattern.length) re += pattern.slice(last).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    var match = new RegExp("^" + re + "$", "i").exec(s.trim());
+    if (!match) return null;
+
+    var year = null, month = 0, day = 1, hour = 0, minute = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var v = match[i + 1];
+      switch (tokens[i]) {
+        case "YYYY": year = parseInt(v, 10); break;
+        case "YY":   year = 2000 + parseInt(v, 10); break;
+        case "MMMM": case "MMM":
+          month = DP_MONTHS.findIndex(function (name) {
+            return name.slice(0, v.length).toLowerCase() === v.toLowerCase();
+          });
+          if (month < 0) return null;
+          break;
+        case "MM": case "M": month = parseInt(v, 10) - 1; break;
+        case "DD": case "D": day = parseInt(v, 10); break;
+        case "HH": hour = parseInt(v, 10); break;
+        case "mm": minute = parseInt(v, 10); break;
+      }
+    }
+    if (year === null) return null;
+    var d = new Date(year, month, day, hour, minute, 0, 0);
+    // Reject dates the calendar rolled over (31 February and friends).
+    if (d.getFullYear() !== year || d.getMonth() !== month || d.getDate() !== day) return null;
+    return d;
+  }
+
+  function dpSameDay(a, b) {
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  }
+
+  var dpOpen = null; // { input, pattern, popup, view, sel, hasTime }
+
+  function dpClose() {
+    if (!dpOpen) return;
+    dpOpen.popup.remove();
+    dpOpen = null;
+  }
+
+  function dpPosition() {
+    if (!dpOpen) return;
+    var r = dpOpen.input.getBoundingClientRect();
+    var p = dpOpen.popup;
+    p.style.left = window.scrollX + r.left + "px";
+    // Flip above the field when there is not enough room below it.
+    var below = window.innerHeight - r.bottom;
+    if (below < p.offsetHeight + 8 && r.top > p.offsetHeight + 8) {
+      p.style.top = window.scrollY + r.top - p.offsetHeight - 6 + "px";
+    } else {
+      p.style.top = window.scrollY + r.bottom + 6 + "px";
+    }
+  }
+
+  function dpButton(cls, label, attrs) {
+    var b = document.createElement("button");
+    b.type = "button"; // never submit the surrounding form
+    b.className = cls;
+    b.textContent = label;
+    for (var k in attrs || {}) b.setAttribute(k, attrs[k]);
+    return b;
+  }
+
+  function dpRender() {
+    if (!dpOpen) return;
+    var st = dpOpen;
+    var body = st.popup.querySelector("[data-dp-body]");
+    var title = st.popup.querySelector("[data-dp-month]");
+    title.textContent = DP_MONTHS[st.view.getMonth()] + " " + st.view.getFullYear();
+    body.textContent = "";
+
+    st.dow.forEach(function (name) {
+      var el = document.createElement("div");
+      el.className = "dp-dow";
+      el.textContent = name;
+      body.appendChild(el);
+    });
+
+    var first = new Date(st.view.getFullYear(), st.view.getMonth(), 1);
+    // Monday-first offset, matching the calendar view.
+    var lead = (first.getDay() + 6) % 7;
+    var days = new Date(st.view.getFullYear(), st.view.getMonth() + 1, 0).getDate();
+    var today = new Date();
+    for (var i = 0; i < lead; i++) body.appendChild(document.createElement("div"));
+    for (var day = 1; day <= days; day++) {
+      var d = new Date(st.view.getFullYear(), st.view.getMonth(), day);
+      var b = dpButton("dp-day", String(day), { "data-dp-day": String(day) });
+      if (dpSameDay(d, today)) b.classList.add("today");
+      if (st.sel && dpSameDay(d, st.sel)) {
+        b.classList.add("selected");
+        b.setAttribute("aria-current", "date");
+      }
+      body.appendChild(b);
+    }
+  }
+
+  // dpCommit writes the picker's date (and time, when the pattern has one)
+  // back into the text box.
+  function dpCommit() {
+    if (!dpOpen || !dpOpen.sel) return;
+    var st = dpOpen;
+    var d = new Date(st.sel.getTime());
+    if (st.hasTime) {
+      var t = st.popup.querySelector("[data-dp-time]");
+      var parts = (t && t.value ? t.value : "09:00").split(":");
+      d.setHours(parseInt(parts[0], 10) || 0, parseInt(parts[1], 10) || 0, 0, 0);
+    }
+    st.input.value = dpFormat(d, st.pattern);
+    st.input.dispatchEvent(new Event("input", { bubbles: true }));
+    st.input.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  function dpBuild(input) {
+    var pattern = input.getAttribute("data-datepicker");
+    var hasTime = /HH|mm/.test(pattern);
+    var current = dpParse(input.value, pattern);
+    var base = current || new Date();
+
+    var popup = document.createElement("div");
+    popup.className = "dp";
+    popup.setAttribute("role", "dialog");
+    popup.setAttribute("aria-label", "Date picker");
+
+    var head = document.createElement("div");
+    head.className = "dp-head";
+    head.appendChild(dpButton("dp-nav", "‹", { "data-dp-prev": "", "aria-label": "Previous month" }));
+    var month = document.createElement("div");
+    month.className = "dp-month";
+    month.setAttribute("data-dp-month", "");
+    head.appendChild(month);
+    head.appendChild(dpButton("dp-nav", "›", { "data-dp-next": "", "aria-label": "Next month" }));
+    popup.appendChild(head);
+
+    var body = document.createElement("div");
+    body.className = "dp-grid";
+    body.setAttribute("data-dp-body", "");
+    popup.appendChild(body);
+
+    var foot = document.createElement("div");
+    foot.className = "dp-foot";
+    if (hasTime) {
+      var time = document.createElement("input");
+      time.type = "time";
+      time.className = "dp-time";
+      time.setAttribute("data-dp-time", "");
+      time.value = current ? dpPad(current.getHours()) + ":" + dpPad(current.getMinutes()) : "09:00";
+      foot.appendChild(time);
+    }
+    foot.appendChild(dpButton("btn btn-sm btn-ghost", input.getAttribute("data-dp-today") || "Today", { "data-dp-todaybtn": "" }));
+    foot.appendChild(dpButton("btn btn-sm btn-primary", input.getAttribute("data-dp-done") || "OK", { "data-dp-done": "" }));
+    popup.appendChild(foot);
+
+    document.body.appendChild(popup);
+    dpOpen = {
+      input: input,
+      pattern: pattern,
+      popup: popup,
+      hasTime: hasTime,
+      view: new Date(base.getFullYear(), base.getMonth(), 1),
+      sel: current,
+      dow: (input.getAttribute("data-dow") || "Mon,Tue,Wed,Thu,Fri,Sat,Sun").split(","),
+    };
+    dpRender();
+    dpPosition();
+  }
+
+  function dpMove(days) {
+    if (!dpOpen) return;
+    var from = dpOpen.sel || new Date();
+    var d = new Date(from.getFullYear(), from.getMonth(), from.getDate() + days);
+    dpOpen.sel = d;
+    dpOpen.view = new Date(d.getFullYear(), d.getMonth(), 1);
+    dpRender();
+  }
+
+  document.addEventListener("click", function (e) {
+    var input = e.target.closest ? e.target.closest("input[data-datepicker]") : null;
+    if (input && input.getAttribute("data-datepicker")) {
+      if (!dpOpen || dpOpen.input !== input) {
+        dpClose();
+        dpBuild(input);
+      }
+      return;
+    }
+    if (!dpOpen) return;
+    if (!dpOpen.popup.contains(e.target)) {
+      dpClose();
+      return;
+    }
+
+    var t = e.target;
+    if (t.closest("[data-dp-prev]")) {
+      dpOpen.view = new Date(dpOpen.view.getFullYear(), dpOpen.view.getMonth() - 1, 1);
+      dpRender();
+    } else if (t.closest("[data-dp-next]")) {
+      dpOpen.view = new Date(dpOpen.view.getFullYear(), dpOpen.view.getMonth() + 1, 1);
+      dpRender();
+    } else if (t.closest("[data-dp-todaybtn]")) {
+      var now = new Date();
+      dpOpen.sel = now;
+      dpOpen.view = new Date(now.getFullYear(), now.getMonth(), 1);
+      dpRender();
+    } else if (t.closest("[data-dp-done]")) {
+      dpCommit();
+      dpClose();
+    } else {
+      var dayBtn = t.closest("[data-dp-day]");
+      if (dayBtn) {
+        dpOpen.sel = new Date(
+          dpOpen.view.getFullYear(),
+          dpOpen.view.getMonth(),
+          parseInt(dayBtn.getAttribute("data-dp-day"), 10),
+        );
+        dpRender();
+        dpCommit();
+      }
+    }
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (!dpOpen) return;
+    switch (e.key) {
+      case "Escape":
+        e.preventDefault();
+        dpClose();
+        break;
+      case "ArrowLeft":  e.preventDefault(); dpMove(-1); break;
+      case "ArrowRight": e.preventDefault(); dpMove(1); break;
+      case "ArrowUp":    e.preventDefault(); dpMove(-7); break;
+      case "ArrowDown":  e.preventDefault(); dpMove(7); break;
+      case "Enter":
+        // Enter picks the highlighted day rather than submitting the form.
+        if (dpOpen.sel) {
+          e.preventDefault();
+          dpCommit();
+          dpClose();
+        }
+        break;
+      default:
+        break;
+    }
+  });
+
+  // Typing in the field keeps the calendar in sync without stealing the input.
+  document.addEventListener("input", function (e) {
+    if (!dpOpen || e.target !== dpOpen.input) return;
+    var d = dpParse(dpOpen.input.value, dpOpen.pattern);
+    if (!d) return;
+    dpOpen.sel = d;
+    dpOpen.view = new Date(d.getFullYear(), d.getMonth(), 1);
+    // Follow the typed time too, otherwise confirming the calendar would
+    // overwrite it with whatever the field held when the popup opened.
+    if (dpOpen.hasTime) {
+      var t = dpOpen.popup.querySelector("[data-dp-time]");
+      if (t) t.value = dpPad(d.getHours()) + ":" + dpPad(d.getMinutes());
+    }
+    dpRender();
+  });
+
+  window.addEventListener("resize", dpPosition);
+  window.addEventListener("scroll", dpPosition, true);
+
   // ---- live list refresh (debounced) ----------------------------------
   var refreshTimer = null;
   function refreshList() {

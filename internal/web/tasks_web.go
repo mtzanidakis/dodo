@@ -375,11 +375,8 @@ func (h *Handler) buildCalendar(r *http.Request, u *models.User, loc *time.Locat
 		Month:      first.Format("2006-01"),
 		Prev:       first.AddDate(0, -1, 0).Format("2006-01"),
 		Next:       next.Format("2006-01"),
-		DOW: []string{
-			i18n.T("dow.mon", lang), i18n.T("dow.tue", lang), i18n.T("dow.wed", lang),
-			i18n.T("dow.thu", lang), i18n.T("dow.fri", lang), i18n.T("dow.sat", lang), i18n.T("dow.sun", lang),
-		},
-		Weeks: weeks,
+		DOW:        dowLabels(lang),
+		Weeks:      weeks,
 	}
 }
 

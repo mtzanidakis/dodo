@@ -377,6 +377,26 @@ func TestDateFormatChangesRenderingAndDueInput(t *testing.T) {
 	if !strings.Contains(body, `placeholder="dd/mm/yyyy hh:mm"`) {
 		t.Fatalf("due field should hint the pattern: %s", body)
 	}
+	// The text box is enhanced by the date picker, which needs the pattern and
+	// the localized weekday headings.
+	if !strings.Contains(body, `data-datepicker="DD/MM/YYYY HH:mm"`) {
+		t.Fatalf("due field should carry the picker pattern: %s", body)
+	}
+	if !strings.Contains(body, `data-dow="Mon,Tue,Wed,Thu,Fri,Sat,Sun"`) {
+		t.Fatalf("due field should carry weekday headings: %s", body)
+	}
+}
+
+func TestDatePickerNotAttachedWithoutAPattern(t *testing.T) {
+	mux, _, _, session := newWebEnv(t)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	withSession(req, session)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	// An empty data-datepicker is the signal to leave the native picker alone.
+	if body := rec.Body.String(); !strings.Contains(body, `data-datepicker=""`) {
+		t.Fatalf("native picker should not be enhanced: %s", body)
+	}
 }
 
 func TestCreateTaskAcceptsUserDateFormat(t *testing.T) {
