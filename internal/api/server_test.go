@@ -191,7 +191,13 @@ type listResp struct {
 
 func TestCreateRecurringAdvances(t *testing.T) {
 	ts := newTestServer(t)
-	due := time.Date(2026, 7, 11, 10, 0, 0, 0, time.UTC).Format(time.RFC3339)
+	loc, err := time.LoadLocation("Europe/Athens")
+	if err != nil {
+		t.Fatalf("load location: %v", err)
+	}
+	dueAt := time.Now().In(loc).Add(48 * time.Hour).Truncate(time.Hour)
+	wantNext := dueAt.AddDate(0, 0, 1)
+	due := dueAt.Format(time.RFC3339)
 	freq := "daily"
 	body := map[string]any{"title": "Daily", "due_at": due, "recurrence_freq": freq, "recurrence_interval": 1}
 	rec, b := ts.do(t, http.MethodPost, "/api/v1/tasks", ts.tokenA, "", body)
@@ -220,8 +226,8 @@ func TestCreateRecurringAdvances(t *testing.T) {
 	}
 	got, _ := ts.store.Tasks.Get(context.Background(), ts.userA.ID, created.ID)
 	nextDay := got.DueAt
-	if !nextDay.Equal(time.Date(2026, 7, 12, 10, 0, 0, 0, time.UTC)) {
-		t.Fatalf("due should advance +1d, got %v", nextDay)
+	if !nextDay.Equal(wantNext) {
+		t.Fatalf("due should advance +1d to %v, got %v", wantNext, nextDay)
 	}
 }
 
