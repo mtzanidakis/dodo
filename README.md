@@ -158,13 +158,37 @@ contain a year, a month and a day:
 | `M`    | 7                | `D`    | 5               |
 
 The setting lives on your profile (`date_format` on `/api/v1/me`), so the web
-UI, `dodo-tui` and `dodo-cli` input all follow it. Clients can override it
+UI, `dodo-tui` and `dodo-cli --pretty` all follow it. Clients can override it
 with `date_format` in their config.
 
-Once you pick a format, the web Due field becomes a plain text box that both
-shows and accepts that pattern (`05/08/2026 17:30`) — a native date picker
-always renders in the browser's own locale, which is what the default falls
-back to. Times stay 24h, and what is stored is unchanged: RFC3339 UTC.
+Once you pick a format, the web Due field swaps the native date picker — which
+always renders in the browser's own locale — for a text box plus dodo's own
+calendar, both speaking your pattern (`05/08/2026 17:30`). Typing still works;
+arrow keys move by day and week, Enter picks, Escape closes. What is stored is
+unchanged: RFC3339 UTC.
+
+## Human-readable CLI output
+
+`dodo-cli` prints JSON so agents can parse it. Add `--pretty` for aligned
+tables and key/value blocks, with dates in your chosen format:
+
+```
+$ dodo-cli --pretty tasks list
+DUE                   STATUS   PRIORITY  TITLE          REPEAT     ID
+12/08/2026 08:15      pending  normal    Pay rent       -          019f9f6e-...
+14/08/2026 18:45      overdue  high      Call the bank  weekly x2  019f9fb3-...
+
+$ dodo-cli --pretty tasks get 019f9f6e-...
+Title     Pay rent
+Due       12/08/2026 08:15
+Status    pending
+Priority  normal
+Repeat    -
+Id        019f9f6e-...
+```
+
+Errors become one readable line (`error: not found`) instead of an envelope.
+Without the flag nothing changes — same JSON, same RFC3339 timestamps.
 
 ## Telegram setup
 

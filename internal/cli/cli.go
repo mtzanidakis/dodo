@@ -85,6 +85,10 @@ func (a *App) Run(args []string) int {
 	case "upgrade":
 		return a.cmdUpgrade()
 	case "version":
+		if a.pretty {
+			a.println(selfupdate.DisplayVersion(a.Version))
+			return ExitOK
+		}
 		a.emitJSON(map[string]any{"version": selfupdate.DisplayVersion(a.Version)})
 		return ExitOK
 	case "-h", "--help", "help":
@@ -315,13 +319,22 @@ func (a *App) handleResponse(status int, body []byte, notFoundCode int) ([]byte,
 		return body, true
 	case status == http.StatusNotFound && notFoundCode != 0:
 		return body, false
-	case status == http.StatusUnauthorized:
-		a.eprintln(strings.TrimSpace(string(body)))
-		return nil, false
 	default:
-		a.eprintln(strings.TrimSpace(string(body)))
+		a.eprintErr(body)
 		return nil, false
 	}
+}
+
+// eprintErr reports a failed request on stderr: the raw error envelope by
+// default (agents parse it), a single readable line under --pretty.
+func (a *App) eprintErr(body []byte) {
+	if a.pretty {
+		if msg, ok := prettyError(body); ok {
+			a.eprintln(msg)
+			return
+		}
+	}
+	a.eprintln(strings.TrimSpace(string(body)))
 }
 
 var _ = errors.New
