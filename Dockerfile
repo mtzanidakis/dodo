@@ -8,7 +8,7 @@ COPY web ./web
 WORKDIR /src/web
 RUN npm run build
 
-FROM golang:1.26.5-alpine AS go
+FROM golang:1.27.1-alpine AS go
 WORKDIR /src
 RUN apk add --no-cache git
 COPY go.mod go.sum ./
