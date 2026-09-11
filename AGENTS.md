@@ -14,7 +14,7 @@ Guidance for AI agents working on this repository.
 
 ## Tooling
 
-- [mise](https://mise.jdx.dev/) installs Go 1.26.5, golangci-lint 2.12.2, Node 24.
+- [mise](https://mise.jdx.dev/) installs Go 1.27.1, golangci-lint 2.13.2, Node 24.
 - `mise trust` once per clone.
 
 ## Commands
@@ -40,7 +40,7 @@ Also `go vet ./...` and `gofmt -l .` (must be empty).
 
 ## Conventions
 
-- Go 1.26.5, `internal/` package boundary.
+- Go 1.27.1, `internal/` package boundary.
 - Logging: `log/slog` structured. Server/admin read `DODO_LOG_LEVEL`; clients read `log_level` from their config.
 - Errors: sentinel errors in `internal/models/errors.go` (`ErrNotFound`, `ErrUnauthorized`, `ErrConflict`, `ErrValidation`). Wrap with `%w`. HTTP layer maps them to status codes.
 - `context.Context` is the first param of every store/handler method.

@@ -32,10 +32,10 @@ The project will be MIT-licensed.
 ## Stack
 
 - Mise setup for all dev tooling installation and tasks.
-- Go 1.26.5 for both the api and the cli commands. Three binaries: `dodo` (server + admin subcommand, ships in the container), `dodo-cli` (agent CLI), `dodo-tui` (terminal UI).
+- Go 1.27.1 for both the api and the cli commands. Three binaries: `dodo` (server + admin subcommand, ships in the container), `dodo-cli` (agent CLI), `dodo-tui` (terminal UI).
 - Use go stdlib as much as possible, reducing external dependencies. Telegram Bot API via a small hand-rolled client (no external telegram library).
 - Unit tests with extended coverage.
-- golangci-lint v2.12.2 for all go files.
+- golangci-lint v2.13.2 for all go files.
 - Sqlite for database with native go library modernc.org/sqlite.
 - Web frontend built with htmx + Alpine.js and a hand-written, self-contained stylesheet (no Tailwind or CSS framework). Node 24 is used only to vendor htmx/alpine and assemble the embedded assets.
 - Dockerfile for deployment, with alpine:3.24 based container (node:24-alpine build stage for frontend assets).
