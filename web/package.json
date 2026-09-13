@@ -7,11 +7,11 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "alpinejs": "3.16.2",
+    "alpinejs": "3.17.2",
     "htmx.org": "2.0.10"
   },
   "devDependencies": {
     "jsdom": "30.0.1",
-    "vitest": "4.1.11"
+    "vitest": "5.0.0"
   }
 }
