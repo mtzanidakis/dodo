@@ -14,7 +14,7 @@ Guidance for AI agents working on this repository.
 
 ## Tooling
 
-- [mise](https://mise.jdx.dev/) installs Go 1.27.1, golangci-lint 2.13.2, Node 24.
+- [mise](https://mise.jdx.dev/) installs Go 1.27.1, golangci-lint 2.14.0, Node 24.
 - `mise trust` once per clone.
 
 ## Commands
