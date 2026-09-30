@@ -88,7 +88,7 @@ dodo/
 - Tests: table-driven, `_test.go` next to source, `t.Parallel()` where safe; in-memory SQLite (`:memory:`) for store tests; `httptest` for API tests.
 - No comments in code unless genuinely needed. No emojis in code or UI.
 - **Per-user data scoping**: every store query that touches `tasks`, `task_completions`, `api_tokens` (and the `me/*` routes) must take a `userID` argument and constrain `WHERE user_id = ?`. The API handler reads the authenticated user from context (set by `AuthSession` or `AuthBearer`) and passes it down; never trust a `user_id` field in request bodies for these routes. An admin role never grants cross-user read/write of task data via the HTTP API — admin powers are limited to the `dodo admin` CLI (direct DB) for user/token management. If task `{id}` belongs to a different user, return `404` (not `403`) to avoid leaking existence.
-- golangci-lint v2.13.2 with `.golangci.yaml` (enable errcheck, govet, staticcheck, ineffassign, unused, gocritic, revive; keep test linters relaxed).
+- golangci-lint v2.14.0 with `.golangci.yaml` (enable errcheck, govet, staticcheck, ineffassign, unused, gocritic, revive; keep test linters relaxed).
 
 ### 0.5 Server configuration (env vars — `dodo` binary only)
 
@@ -187,7 +187,7 @@ The `feat` type is used for new functionality, `fix` for bugs, `refactor` for no
 
 **Tasks:**
 1. `go mod init github.com/mtzanidakis/dodo`.
-2. `mise.toml`: pin `go = "1.27.1"`, `golangci-lint = "2.13.2"`, `node = "24"`. Define tasks: `build-server` (`go build ./cmd/dodo`), `build-cli` (`go build ./cmd/dodo-cli`), `build-tui` (`go build ./cmd/dodo-tui`), `build-all`, `run`, `test`, `lint`, `web:build`, `web:dev`, `tidy`.
+2. `mise.toml`: pin `go = "1.27.1"`, `golangci-lint = "2.14.0"`, `node = "24"`. Define tasks: `build-server` (`go build ./cmd/dodo`), `build-cli` (`go build ./cmd/dodo-cli`), `build-tui` (`go build ./cmd/dodo-tui`), `build-all`, `run`, `test`, `lint`, `web:build`, `web:dev`, `tidy`.
 3. `.golangci.yaml` (latest v2 schema) with the linters listed in 0.4.
 4. `.commitlintrc.yml` (repo root, auto-detected by commitlint): conventional-commits config defining allowed types (`feat,fix,refactor,test,chore,docs,ci,build,perf,style`), scopes (`db,auth,api,recurrence,scheduler,notify,telegram,web,i18n,tui,cli,admin,docker,ci,crypto,config`), subject max-length 72, body max-line-length 72, require footer for breaking changes.
 5. `cmd/dodo/main.go`: dispatch on `os.Args[1]` to `serve`/`admin`; print usage otherwise. `cmd/dodo-cli/main.go` and `cmd/dodo-tui/main.go`: minimal stubs printing "not implemented" and `--help` flag placeholders. Each branch/program just prints "not implemented" for now.
