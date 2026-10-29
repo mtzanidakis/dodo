@@ -3,6 +3,8 @@
 //   - vendor.js   : htmx + alpine, concatenated
 //   - app.css     : copied from web/src/app.css
 //   - app.js      : copied from web/src/app.js
+//   - sw.js       : copied from web/src/sw.js (served at /sw.js)
+//   - *.png       : logo and installed-app icons
 //   - version.txt : short content hash used for cache-busting the /static path
 const fs = require("fs");
 const path = require("path");
@@ -53,18 +55,20 @@ fs.writeFileSync(path.join(out, "dateformat.js"), dateFormatJS);
 const appJS = fs.readFileSync(path.join(srcDir, "app.js"), "utf8");
 fs.writeFileSync(path.join(out, "app.js"), appJS);
 
-const logo = fs.readFileSync(path.join(srcDir, "logo.png"));
-fs.writeFileSync(path.join(out, "logo.png"), logo);
+// sw.js is served from the site root (/sw.js), not /static/{version}/, so a
+// worker can control the whole app; see internal/web/pwa.go.
+const swJS = fs.readFileSync(path.join(srcDir, "sw.js"), "utf8");
+fs.writeFileSync(path.join(out, "sw.js"), swJS);
 
-const hash = crypto
-  .createHash("sha256")
-  .update(vendorJS)
-  .update(appCSS)
-  .update(dateFormatJS)
-  .update(appJS)
-  .update(logo)
-  .digest("hex")
-  .slice(0, 12);
+const images = ["logo.png", "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png"];
+const hasher = crypto.createHash("sha256").update(vendorJS).update(appCSS).update(dateFormatJS).update(appJS).update(swJS);
+for (const name of images) {
+  const b = fs.readFileSync(path.join(srcDir, name));
+  fs.writeFileSync(path.join(out, name), b);
+  hasher.update(b);
+}
+
+const hash = hasher.digest("hex").slice(0, 12);
 fs.writeFileSync(path.join(out, "version.txt"), hash + "\n");
 
-console.log("dist built:", "version=" + hash, "(vendor.js, app.css, dateformat.js, app.js, logo.png, version.txt)");
+console.log("dist built:", "version=" + hash, "(vendor.js, app.css, dateformat.js, app.js, sw.js, " + images.join(", ") + ", version.txt)");

@@ -211,6 +211,19 @@ desktop notification when a task is due. This uses the Web Notifications
 API, so it fires while a dodo tab is open and requires a secure context
 (`localhost` or https — not plain http to a LAN/tailnet IP).
 
+## Install as an app
+
+The web UI is a Progressive Web App, so it can be installed and opened in
+its own window without the browser chrome:
+
+- **Android (Chrome)**: menu → **Add to Home screen** → **Install**.
+- **iOS (Chrome or Safari)**: Share → **Add to Home Screen**.
+- **Desktop (Chrome/Edge)**: the install icon in the address bar.
+
+Like notifications, this needs a secure context (https or `localhost`).
+The app always loads live data from the server; offline it shows a retry
+page.
+
 ## Backup
 
 The `/data` volume is the only state. Take a consistent online backup with the

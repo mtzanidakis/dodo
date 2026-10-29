@@ -206,6 +206,8 @@ func dowLabels(lang string) []string {
 func (h *Handler) Mount(mux *http.ServeMux) {
 	deps := h.deps
 	mux.Handle("GET /static/{path...}", http.StripPrefix("/static/"+h.deps.Version+"/", h.assetsHandler()))
+	mux.HandleFunc("GET /manifest.webmanifest", h.handleManifest)
+	mux.HandleFunc("GET /sw.js", h.handleServiceWorker)
 
 	mux.HandleFunc("GET /login", h.handleLoginPage)
 	mux.HandleFunc("POST /login", h.handleLoginPost)

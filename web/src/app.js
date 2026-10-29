@@ -7,11 +7,23 @@
   var root = document.documentElement;
 
   // ---- theme ----------------------------------------------------------
+  // Matches the topbar background (--bg-elev) so the installed app's status
+  // bar blends in.
+  var THEME_COLORS = { light: "#ffffff", dark: "#16191d" };
+
+  function applyThemeColor(theme) {
+    document.querySelectorAll('meta[name="theme-color"]').forEach(function (m) {
+      var scheme = (m.getAttribute("media") || "").indexOf("dark") >= 0 ? "dark" : "light";
+      m.setAttribute("content", THEME_COLORS[theme] || THEME_COLORS[scheme]);
+    });
+  }
+
   function applyTheme(theme) {
     root.classList.remove("dark", "light");
     if (theme === "dark") root.classList.add("dark");
     else if (theme === "light") root.classList.add("light");
     // "system" => no class; CSS prefers-color-scheme decides.
+    applyThemeColor(theme);
   }
 
   function storedTheme() {
@@ -54,9 +66,15 @@
 
   var pref = storedTheme();
   if (pref) applyTheme(pref);
+  applyThemeColor(currentTheme());
   markActiveTheme(currentTheme());
 
   window.dodoSetTheme = setTheme;
+
+  // ---- service worker -------------------------------------------------
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").catch(function () {});
+  }
 
   document.addEventListener("click", function (e) {
     var el = e.target.closest ? e.target.closest("[data-set-theme]") : null;
