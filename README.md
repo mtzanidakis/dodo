@@ -211,7 +211,8 @@ notification when a task is due. It is shown through dodo's service worker,
 so it also works in Chrome on Android, including the installed app. It
 fires while dodo is open (a tab, or the installed app while the OS keeps
 it running; there is no push service), so use Telegram for reminders you
-must not miss. It requires a secure context (`localhost` or https — not
+must not miss. On iOS, notifications are only available in the installed
+app (iOS 16.4+), not in a Safari or Chrome tab. It requires a secure context (`localhost` or https — not
 plain http to a LAN/tailnet IP).
 
 ## Install as an app

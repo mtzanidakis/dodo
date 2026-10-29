@@ -87,15 +87,38 @@ describe("notification click", () => {
     return { close, done };
   }
 
-  it("focuses an open dodo window", async () => {
-    const focus = vi.fn();
+  function win(url, focus = vi.fn(() => Promise.resolve())) {
+    return { url, focus };
+  }
+
+  it("focuses a window already on the task list", async () => {
+    const account = win("http://localhost/account");
+    const home = win("http://localhost/?view=calendar");
     const openWindow = vi.fn();
-    vi.stubGlobal("clients", { matchAll: () => Promise.resolve([{ focus }]), openWindow });
+    vi.stubGlobal("clients", { matchAll: () => Promise.resolve([account, home]), openWindow });
     const { close, done } = click();
     await done;
     expect(close).toHaveBeenCalled();
-    expect(focus).toHaveBeenCalled();
+    expect(home.focus).toHaveBeenCalled();
+    expect(account.focus).not.toHaveBeenCalled();
     expect(openWindow).not.toHaveBeenCalled();
+  });
+
+  it("opens the task list instead of navigating away from another page", async () => {
+    const account = win("http://localhost/account");
+    const openWindow = vi.fn();
+    vi.stubGlobal("clients", { matchAll: () => Promise.resolve([account]), openWindow });
+    await click().done;
+    expect(account.focus).not.toHaveBeenCalled();
+    expect(openWindow).toHaveBeenCalledWith("/");
+  });
+
+  it("opens the task list when focusing fails", async () => {
+    const home = win("http://localhost/", vi.fn(() => Promise.reject(new Error("not allowed"))));
+    const openWindow = vi.fn();
+    vi.stubGlobal("clients", { matchAll: () => Promise.resolve([home]), openWindow });
+    await click().done;
+    expect(openWindow).toHaveBeenCalledWith("/");
   });
 
   it("opens the app when no window is open", async () => {

@@ -125,9 +125,21 @@
   // Shown through the service worker when there is one: Android Chrome only
   // allows that (new Notification throws there), and sw.js focuses the app
   // on click. The constructor stays as the fallback for desktop browsers.
-  function notify(title, body, tag) {
+  //
+  // One notification per task, re-alerting on each reminder (renotify).
+  // Every open tab receives the same task.due event; notified_at identifies
+  // the reminder so only the first tab to see it shows it.
+  function notify(task) {
     if (!notifySupported() || Notification.permission !== "granted") return;
-    var opts = { body: body, tag: tag, icon: "/icons/icon-192.png" };
+    var title = task.title;
+    var at = task.notified_at || "";
+    var opts = {
+      body: document.body.getAttribute("data-notify-due") || "Due now",
+      tag: "task-" + (task.id || ""),
+      renotify: true,
+      icon: "/icons/icon-192.png",
+      data: { at: at },
+    };
     var direct = function () {
       try {
         var n = new Notification(title, opts);
@@ -142,7 +154,12 @@
       .getRegistration()
       .then(function (reg) {
         if (!reg || !reg.active) return direct();
-        return reg.showNotification(title, opts);
+        return reg.getNotifications({ tag: opts.tag }).then(function (shown) {
+          for (var i = 0; i < shown.length; i++) {
+            if (at && shown[i].data && shown[i].data.at === at) return;
+          }
+          return reg.showNotification(title, opts);
+        });
       })
       .catch(direct);
   }
@@ -526,7 +543,7 @@
           refreshList();
           if (evt.payload && evt.payload.title) {
             toast("⏰ " + evt.payload.title);
-            notify(evt.payload.title, "Due now", "task-" + (evt.payload.id || ""));
+            notify(evt.payload);
           }
           break;
         default:

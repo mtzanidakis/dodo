@@ -18,7 +18,7 @@
 <script src="/static/{{.AssetVersion}}/dateformat.js" defer></script>
 <script src="/static/{{.AssetVersion}}/app.js" defer></script>
 </head>
-<body hx-headers='{"X-CSRF-Token":"{{.CSRF}}"}'>
+<body hx-headers='{"X-CSRF-Token":"{{.CSRF}}"}' data-notify-due="{{t .Lang "notify.due_now"}}">
 {{if .User}}
 <header class="topbar">
   <a class="brand" href="/"><img class="brand-logo" src="/static/{{.AssetVersion}}/logo.png" alt="dodo"><span>dodo</span></a>

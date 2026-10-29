@@ -188,3 +188,23 @@ func TestThemeColorFollowsSavedTheme(t *testing.T) {
 		}
 	}
 }
+
+func TestNotificationTextIsLocalized(t *testing.T) {
+	t.Parallel()
+	mux, st, u, session := newWebEnv(t)
+	u.Locale = models.LocaleEl
+	if err := st.Users.Update(context.Background(), u); err != nil {
+		t.Fatalf("update user: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	withSession(req, session)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	want := `data-notify-due="` + i18n.T("notify.due_now", "el") + `"`
+	if !strings.Contains(rec.Body.String(), want) {
+		t.Fatalf("missing %s", want)
+	}
+	if i18n.T("notify.due_now", "el") == i18n.T("notify.due_now", "en") {
+		t.Fatalf("notify.due_now not translated to el")
+	}
+}

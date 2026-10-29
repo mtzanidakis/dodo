@@ -16,23 +16,22 @@ class FakeWebSocket {
 }
 
 const NotificationMock = vi.fn();
-NotificationMock.permission = "granted";
-
 const showNotification = vi.fn(() => Promise.resolve());
+let shown;
 let registration;
+
+const serviceWorker = {
+  register: () => Promise.resolve(),
+  getRegistration: () => Promise.resolve(registration),
+};
 
 beforeAll(async () => {
   globalThis.WebSocket = FakeWebSocket;
   globalThis.Notification = NotificationMock;
-  Object.defineProperty(navigator, "serviceWorker", {
-    value: {
-      register: () => Promise.resolve(),
-      getRegistration: () => Promise.resolve(registration),
-    },
-    configurable: true,
-  });
+  Object.defineProperty(navigator, "serviceWorker", { value: serviceWorker, configurable: true });
   window.htmx = { ajax: vi.fn(() => Promise.resolve()) };
   document.body.innerHTML = `<details class="usermenu"></details>`;
+  document.body.setAttribute("data-notify-due", "Λήγει τώρα");
   await import("./dateformat.js");
   await import("./app.js");
   FakeWebSocket.last.readyState = FakeWebSocket.OPEN;
@@ -43,36 +42,75 @@ beforeEach(() => {
   NotificationMock.mockClear();
   NotificationMock.permission = "granted";
   showNotification.mockClear();
-  registration = { active: {}, showNotification };
+  shown = [];
+  registration = {
+    active: {},
+    showNotification,
+    getNotifications: ({ tag }) => Promise.resolve(shown.filter((n) => n.tag === tag)),
+  };
+  Object.defineProperty(navigator, "serviceWorker", { value: serviceWorker, configurable: true });
 });
 
-async function taskDue(title) {
-  FakeWebSocket.last.onmessage({ data: JSON.stringify({ type: "task.due", payload: { id: "t1", title } }) });
+async function taskDue(payload) {
+  FakeWebSocket.last.onmessage({ data: JSON.stringify({ type: "task.due", payload }) });
   await new Promise((r) => setTimeout(r, 0));
 }
 
+const due = { id: "t1", title: "Pay bill", notified_at: "2026-10-29T17:00:00Z" };
+
 describe("due-task notifications", () => {
-  it("are shown through the service worker", async () => {
-    await taskDue("Pay bill");
-    expect(showNotification).toHaveBeenCalledWith("Pay bill", expect.objectContaining({ tag: "task-t1" }));
+  it("are shown through the service worker, localized and re-alerting", async () => {
+    await taskDue(due);
+    expect(showNotification).toHaveBeenCalledWith("Pay bill", {
+      body: "Λήγει τώρα",
+      tag: "task-t1",
+      renotify: true,
+      icon: "/icons/icon-192.png",
+      data: { at: "2026-10-29T17:00:00Z" },
+    });
     expect(NotificationMock).not.toHaveBeenCalled();
   });
 
-  it("fall back to the constructor without an active worker", async () => {
+  it("are shown once when several tabs receive the same reminder", async () => {
+    shown = [{ tag: "task-t1", data: { at: due.notified_at } }];
+    await taskDue(due);
+    expect(showNotification).not.toHaveBeenCalled();
+  });
+
+  it("replace the previous reminder for the same task", async () => {
+    shown = [{ tag: "task-t1", data: { at: "2026-10-29T16:00:00Z" } }];
+    await taskDue(due);
+    expect(showNotification).toHaveBeenCalledTimes(1);
+  });
+
+  it("fall back to the constructor without a registration", async () => {
     registration = undefined;
-    await taskDue("Pay bill");
+    await taskDue(due);
     expect(NotificationMock).toHaveBeenCalledWith("Pay bill", expect.objectContaining({ tag: "task-t1" }));
+  });
+
+  it("fall back to the constructor while the worker is not active", async () => {
+    registration.active = null;
+    await taskDue(due);
+    expect(showNotification).not.toHaveBeenCalled();
+    expect(NotificationMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("fall back to the constructor without service worker support", async () => {
+    delete navigator.serviceWorker;
+    await taskDue(due);
+    expect(NotificationMock).toHaveBeenCalledTimes(1);
   });
 
   it("fall back to the constructor when the worker refuses", async () => {
     showNotification.mockImplementationOnce(() => Promise.reject(new TypeError("no")));
-    await taskDue("Pay bill");
+    await taskDue(due);
     expect(NotificationMock).toHaveBeenCalledTimes(1);
   });
 
   it("are not shown without permission", async () => {
     NotificationMock.permission = "default";
-    await taskDue("Pay bill");
+    await taskDue(due);
     expect(showNotification).not.toHaveBeenCalled();
     expect(NotificationMock).not.toHaveBeenCalled();
   });

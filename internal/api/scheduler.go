@@ -87,7 +87,7 @@ func (sc *Scheduler) dispatch(ctx context.Context, t *models.Task, now time.Time
 	if err != nil || u == nil {
 		return
 	}
-	sc.hub.Publish(t.UserID, "task.due", map[string]any{"id": t.ID, "title": t.Title})
+	sc.hub.Publish(t.UserID, "task.due", map[string]any{"id": t.ID, "title": t.Title, "notified_at": now.UTC().Format(time.RFC3339)})
 	if u.TelegramEnabled() && u.TelegramChatID != "" {
 		text := renderReminder(u, t, now)
 		label := i18n.T("action.complete", string(u.Locale))
