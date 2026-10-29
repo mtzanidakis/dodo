@@ -18,7 +18,7 @@ import (
 func (h *Handler) handleSetLocale(w http.ResponseWriter, r *http.Request) {
 	u := auth.UserFromContext(r.Context())
 	if loc := models.Locale(r.FormValue("locale")); loc.Valid() {
-		u.Locale = models.Locale(loc)
+		u.Locale = loc
 		_ = h.deps.Store.Users.Update(r.Context(), u)
 	}
 	http.Redirect(w, r, sameOriginRef(r), http.StatusSeeOther)
@@ -134,7 +134,7 @@ func (h *Handler) handleAccountPost(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if loc := models.Locale(r.FormValue("locale")); loc.Valid() {
-        u.Locale = loc
+		u.Locale = loc
 	}
 	if df, ok := r.Form["date_format"]; ok && len(df) > 0 {
 		pattern := strings.TrimSpace(df[0])

@@ -59,7 +59,7 @@ Also `go vet ./...` and `gofmt -l .` (must be empty).
 | `DODO_DATABASE_PATH`       | `/data/dodo.sqlite` | Used by `serve` and `admin`.                  |
 | `DODO_LISTEN`             | `:8080`          | HTTP bind address.                               |
 | `DODO_ENCRYPTION_KEY`     | (required)       | 32-byte base64 key for AES-256-GCM (telegram bot tokens). Generate with `openssl rand -base64 32`. Server refuses to start without it. |
-| `DODO_DEFAULT_LOCALE`     | `en`             | `en` or `el`.                                    |
+| `DODO_DEFAULT_LOCALE`     | `en`             | `en`, `el` or `it`.                              |
 | `DODO_DEFAULT_TIMEZONE`   | `Europe/Athens`  | IANA name.                                       |
 | `DODO_SCHEDULER_INTERVAL` | `1m`             | Reminder scan cadence (min `1m`).                |
 | `DODO_LOG_LEVEL`          | `info`           | debug/info/warn/error.                           |

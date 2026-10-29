@@ -139,7 +139,6 @@ h2 { font-size: 1.1rem; margin: 0 0 0.75rem; }
 .topbar .who { color: var(--fg-muted); font-size: 0.85rem; }
 
 /* ---------- language switcher ---------- */
-.lang-switch { margin: 0; }
 
 /* ---------- dropdowns (theme + user menu) ---------- */
 .dropdown { position: relative; }

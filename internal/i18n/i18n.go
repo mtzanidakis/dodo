@@ -8,7 +8,7 @@ import (
 	"sync"
 )
 
-//go:embed locales/en.json locales/el.json locales/it.json
+//go:embed locales/*.json
 var localeFS embed.FS
 
 type Bundle struct {
@@ -22,16 +22,27 @@ var (
 	loadOnce sync.Once
 )
 
+// loadAll loads every embedded locales/<code>.json. The files are compiled
+// in, so a broken one is a build defect: panic rather than silently serving
+// English to that locale's users.
 func loadAll() {
 	loadOnce.Do(func() {
-		for _, name := range []string{"en", "el", "it"} {
-			b, err := localeFS.ReadFile("locales/" + name + ".json")
-			if err != nil {
+		entries, err := localeFS.ReadDir("locales")
+		if err != nil {
+			panic(fmt.Sprintf("i18n: read locales: %v", err))
+		}
+		for _, e := range entries {
+			name, ok := strings.CutSuffix(e.Name(), ".json")
+			if !ok {
 				continue
+			}
+			b, err := localeFS.ReadFile("locales/" + e.Name())
+			if err != nil {
+				panic(fmt.Sprintf("i18n: read %s: %v", e.Name(), err))
 			}
 			m := make(map[string]string)
 			if err := json.Unmarshal(b, &m); err != nil {
-				continue
+				panic(fmt.Sprintf("i18n: parse %s: %v", e.Name(), err))
 			}
 			loaded[name] = m
 		}

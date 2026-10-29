@@ -117,7 +117,7 @@
   "ws.reconnecting": "riconnessione in corso",
   "notify.title": "Notifiche del browser",
   "notify.help": "Ricevi una notifica quando un'attività arriva a scadenza, mentre dodo è aperto in una scheda del browser o come applicazione installata.",
-  "notify.due_now": "Scade ora"
+  "notify.due_now": "Scade ora",
   "notify.enable": "Attiva notifiche",
   "notify.enabled": "Notifiche attive",
   "notify.disabled": "Notifiche non attive",

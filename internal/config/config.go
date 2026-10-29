@@ -7,6 +7,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/mtzanidakis/dodo/internal/models"
 )
 
 type Config struct {
@@ -96,12 +98,14 @@ func decodeEncryptionKey(raw string) ([]byte, error) {
 }
 
 func validateLocale(l string) error {
-	switch l {
-	case "en", "el", "it":
+	if models.Locale(l).Valid() {
 		return nil
-	default:
-		return fmt.Errorf("invalid locale %q (want en|el|it)", l)
 	}
+	codes := make([]string, len(models.Locales))
+	for i, c := range models.Locales {
+		codes[i] = string(c)
+	}
+	return fmt.Errorf("invalid locale %q (want %s)", l, strings.Join(codes, "|"))
 }
 
 func env(key, def string) string {

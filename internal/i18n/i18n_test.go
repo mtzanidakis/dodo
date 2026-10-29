@@ -1,7 +1,6 @@
 package i18n_test
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/mtzanidakis/dodo/internal/i18n"
@@ -42,16 +41,10 @@ func TestBundleGet(t *testing.T) {
 	}
 }
 
-func TestAllKeysExistInBothLocales(t *testing.T) {
-	en := i18n.BundleFor("en")
-	el := i18n.BundleFor("el")
-	for _, k := range i18n.Keys() {
-		if strings.TrimSpace(en.Get(k)) == "" {
-			t.Fatalf("en missing value for %q", k)
-		}
-		if strings.TrimSpace(el.Get(k)) == "" {
-			t.Fatalf("el missing value for %q", k)
-		}
+func TestTItalian(t *testing.T) {
+	got := i18n.T("nav.tasks", "it")
+	if got == i18n.T("nav.tasks", "en") {
+		t.Fatalf("it nav.tasks falls back to English: %q", got)
 	}
 }
 

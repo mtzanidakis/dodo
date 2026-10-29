@@ -99,7 +99,7 @@ Env vars are used **exclusively** by the `dodo` binary (`serve` + `admin`). `dod
 | `DODO_DATABASE_PATH`       | `/data/dodo.sqlite` | Used by `serve` and `admin`.                    |
 | `DODO_LISTEN`              | `:8080`        | HTTP bind address.                                 |
 | `DODO_ENCRYPTION_KEY`      | (required)     | 32-byte base64 key for AES-256-GCM encryption of secrets at rest (telegram bot tokens). **Required** — server refuses to start without it. Generate with `openssl rand -base64 32`. |
-| `DODO_DEFAULT_LOCALE`      | `en`           | `en` or `el`.                                      |
+| `DODO_DEFAULT_LOCALE`      | `en`           | `en`, `el` or `it`.                                |
 | `DODO_DEFAULT_TIMEZONE`    | `Europe/Athens` | IANA name; fallback when browser cannot detect or admin creates a user. |
 | `DODO_SCHEDULER_INTERVAL`  | `1m`           | Reminder scan cadence (Go duration; minimum `1m`).  |
 | `DODO_LOG_LEVEL`           | `info`         | debug/info/warn/error (server + admin only).       |

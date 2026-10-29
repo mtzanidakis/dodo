@@ -545,3 +545,25 @@ func TestHomeRowsKeepsLoadedPages(t *testing.T) {
 		}
 	}
 }
+
+func TestLanguageMenuMarksCurrentLocale(t *testing.T) {
+	mux, st, u, session := newWebEnv(t)
+	u.Locale = models.LocaleIt
+	if err := st.Users.Update(context.Background(), u); err != nil {
+		t.Fatalf("update user: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	withSession(req, session)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	body := rec.Body.String()
+	if !strings.Contains(body, `value="it" class="active" aria-current="true">Italiano`) {
+		t.Fatalf("Italiano not marked active")
+	}
+	if strings.Count(body, `aria-current="true">`) != 1 {
+		t.Fatalf("expected exactly one current language")
+	}
+	if !strings.Contains(body, `<html lang="it"`) {
+		t.Fatalf("page not rendered in Italian")
+	}
+}
