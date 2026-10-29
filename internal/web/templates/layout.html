@@ -6,12 +6,13 @@
 <meta name="csrf-token" content="{{.CSRF}}">
 <meta name="color-scheme" content="{{.ColorScheme}}">
 <title>{{.Title}} · dodo</title>
-<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#16191d" media="(prefers-color-scheme: dark)">
+{{$light := "#ffffff"}}{{$dark := "#16191d"}}{{if eq .ThemeClass "dark"}}{{$light = $dark}}{{else if eq .ThemeClass "light"}}{{$dark = $light}}{{end -}}
+<meta name="theme-color" content="{{$light}}" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="{{$dark}}" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-title" content="dodo">
-<link rel="manifest" href="/manifest.webmanifest">
+<link rel="manifest" href="/manifest.webmanifest{{if eq .ThemeClass "dark"}}?theme=dark{{end}}">
 <link rel="icon" type="image/png" href="/static/{{.AssetVersion}}/logo.png">
-<link rel="apple-touch-icon" href="/static/{{.AssetVersion}}/apple-touch-icon.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="stylesheet" href="/static/{{.AssetVersion}}/app.css">
 <script src="/static/{{.AssetVersion}}/vendor.js" defer></script>
 <script src="/static/{{.AssetVersion}}/dateformat.js" defer></script>

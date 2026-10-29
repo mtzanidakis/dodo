@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +10,7 @@ import (
 	"testing/fstest"
 
 	"github.com/mtzanidakis/dodo/internal/i18n"
+	"github.com/mtzanidakis/dodo/internal/models"
 )
 
 func TestManifestIsPublicAndInstallable(t *testing.T) {
@@ -32,14 +34,54 @@ func TestManifestIsPublicAndInstallable(t *testing.T) {
 	sizes := map[string]bool{}
 	maskable := false
 	for _, ic := range m.Icons {
-		if !strings.HasPrefix(ic.Src, "/static/test/") {
-			t.Fatalf("icon not versioned: %q", ic.Src)
+		if !appIcons[strings.TrimPrefix(ic.Src, "/icons/")] {
+			t.Fatalf("icon not at a stable /icons/ path: %q", ic.Src)
 		}
 		sizes[ic.Sizes] = true
 		maskable = maskable || ic.Purpose == "maskable"
 	}
 	if !sizes["192x192"] || !sizes["512x512"] || !maskable {
 		t.Fatalf("icons: %+v", m.Icons)
+	}
+
+	rec = httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/manifest.webmanifest?theme=dark", nil))
+	var dark webManifest
+	if err := json.Unmarshal(rec.Body.Bytes(), &dark); err != nil {
+		t.Fatalf("decode dark: %v", err)
+	}
+	if dark.BackgroundColor == m.BackgroundColor || dark.ThemeColor == m.ThemeColor {
+		t.Fatalf("dark manifest colors unchanged: %+v", dark)
+	}
+}
+
+func TestIconsServedAtStablePaths(t *testing.T) {
+	t.Parallel()
+	h := NewHandler(Deps{Version: "test", AssetsFS: fstest.MapFS{
+		"icon-192.png": {Data: []byte("png")},
+		"app.js":       {Data: []byte("js")},
+	}})
+	mux := http.NewServeMux()
+	h.Mount(mux)
+	cases := []struct {
+		path string
+		code int
+	}{
+		{"/icons/icon-192.png", http.StatusOK},
+		{"/icons/app.js", http.StatusNotFound},
+		{"/icons/icon-512.png", http.StatusNotFound},
+	}
+	for _, tc := range cases {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, tc.path, nil))
+		if rec.Code != tc.code {
+			t.Fatalf("%s: %d, want %d", tc.path, rec.Code, tc.code)
+		}
+		if tc.code == http.StatusOK {
+			if cc := rec.Header().Get("Cache-Control"); strings.Contains(cc, "immutable") || !strings.Contains(cc, "max-age") {
+				t.Fatalf("%s cache-control: %q", tc.path, cc)
+			}
+		}
 	}
 }
 
@@ -104,11 +146,45 @@ func TestLayoutLinksManifest(t *testing.T) {
 	body := rec.Body.String()
 	for _, want := range []string{
 		`<link rel="manifest" href="/manifest.webmanifest">`,
-		`<link rel="apple-touch-icon" href="/static/test/apple-touch-icon.png">`,
+		`<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">`,
 		`<meta name="theme-color"`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("login page missing %s", want)
+		}
+	}
+}
+
+func TestThemeColorFollowsSavedTheme(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		theme    models.Theme
+		metas    []string
+		manifest string
+	}{
+		{models.ThemeSystem, []string{"#ffffff", "#16191d"}, `href="/manifest.webmanifest"`},
+		{models.ThemeLight, []string{"#ffffff", "#ffffff"}, `href="/manifest.webmanifest"`},
+		{models.ThemeDark, []string{"#16191d", "#16191d"}, `href="/manifest.webmanifest?theme=dark"`},
+	}
+	for _, tc := range cases {
+		mux, st, u, session := newWebEnv(t)
+		u.Theme = tc.theme
+		if err := st.Users.Update(context.Background(), u); err != nil {
+			t.Fatalf("update user: %v", err)
+		}
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		withSession(req, session)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		body := rec.Body.String()
+		for i, scheme := range []string{"light", "dark"} {
+			want := `<meta name="theme-color" content="` + tc.metas[i] + `" media="(prefers-color-scheme: ` + scheme + `)">`
+			if !strings.Contains(body, want) {
+				t.Fatalf("%s: missing %s", tc.theme, want)
+			}
+		}
+		if !strings.Contains(body, tc.manifest) {
+			t.Fatalf("%s: missing manifest %s", tc.theme, tc.manifest)
 		}
 	}
 }

@@ -221,8 +221,9 @@ its own window without the browser chrome:
 - **Desktop (Chrome/Edge)**: the install icon in the address bar.
 
 Like notifications, this needs a secure context (https or `localhost`).
-The app always loads live data from the server; offline it shows a retry
-page.
+The app always loads live data from the server. When the server can't be
+reached (the device is offline, or a reverse proxy answers 502/503/504) it
+shows a retry page instead of the browser's error.
 
 ## Backup
 

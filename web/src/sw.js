@@ -1,13 +1,13 @@
-// dodo service worker. It caches nothing, so the app is never stale: every
-// request still goes to the network. It exists to make the app installable
-// and to show a retry page instead of the browser's error when a navigation
-// fails offline.
+// dodo service worker. It caches nothing; it makes the app installable and
+// shows a retry page when a page load cannot reach the server.
 (function () {
   "use strict";
 
-  // The server prepends self.DODO_OFFLINE with the offline-page strings in
-  // the user's locale (see handleServiceWorker in internal/web/pwa.go).
+  // Prepended by the server in the user's locale (internal/web/pwa.go).
   var t = self.DODO_OFFLINE;
+
+  // What a reverse proxy answers while dodo itself is down.
+  var UNREACHABLE = { 502: true, 503: true, 504: true };
 
   function esc(s) {
     return String(s).replace(/[&<>"]/g, function (c) {
@@ -42,12 +42,18 @@
     );
   });
 
+  // Only GET page loads: reloading a retry page shown for a POST would
+  // resubmit the form.
   self.addEventListener("fetch", function (event) {
-    if (event.request.mode !== "navigate") return;
+    var req = event.request;
+    if (req.mode !== "navigate" || req.method !== "GET") return;
     event.respondWith(
       Promise.resolve(event.preloadResponse)
         .then(function (preloaded) {
-          return preloaded || fetch(event.request);
+          return preloaded || fetch(req);
+        })
+        .then(function (res) {
+          return UNREACHABLE[res.status] ? offlinePage() : res;
         })
         .catch(offlinePage),
     );

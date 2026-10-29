@@ -30,13 +30,21 @@ type manifestIcon struct {
 	Purpose string `json:"purpose"`
 }
 
-// handleManifest serves the web app manifest that makes dodo installable.
-// It is public because browsers fetch it without credentials, and it is
-// rendered rather than shipped as a static file so the icon URLs carry the
-// current asset version.
-func (h *Handler) handleManifest(w http.ResponseWriter, _ *http.Request) {
+// appIcons are served at stable /icons/ URLs rather than under the
+// versioned /static/ path: Chrome treats a changed icon URL in the manifest
+// as an app update, which every deploy would otherwise trigger.
+var appIcons = map[string]bool{
+	"icon-192.png":          true,
+	"icon-512.png":          true,
+	"icon-maskable-512.png": true,
+	"apple-touch-icon.png":  true,
+}
+
+// handleManifest is public because browsers fetch the manifest without
+// credentials. ?theme=dark gives dark-mode users a dark splash screen.
+func (h *Handler) handleManifest(w http.ResponseWriter, r *http.Request) {
 	icon := func(name, sizes, purpose string) manifestIcon {
-		return manifestIcon{Src: "/static/" + h.deps.Version + "/" + name, Sizes: sizes, Type: "image/png", Purpose: purpose}
+		return manifestIcon{Src: "/icons/" + name, Sizes: sizes, Type: "image/png", Purpose: purpose}
 	}
 	m := webManifest{
 		ID:              "/",
@@ -54,18 +62,28 @@ func (h *Handler) handleManifest(w http.ResponseWriter, _ *http.Request) {
 			icon("icon-maskable-512.png", "512x512", "maskable"),
 		},
 	}
+	if r.URL.Query().Get("theme") == "dark" {
+		m.BackgroundColor = "#0d0f12"
+		m.ThemeColor = "#16191d"
+	}
 	w.Header().Set("Content-Type", "application/manifest+json")
 	w.Header().Set("Cache-Control", "no-cache")
 	_ = json.NewEncoder(w).Encode(m)
 }
 
-// handleServiceWorker serves sw.js from the site root, since a worker's
-// scope is limited to the path it is served from. It is revalidated on every
-// load so a new deploy replaces the old worker.
-//
-// The worker runs when the server is unreachable, so the offline page's
-// strings are prepended here in the ?lang the page registered it with. A
-// locale change registers a new URL, which makes the browser update it.
+func (h *Handler) handleIcon(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	if h.deps.AssetsFS == nil || !appIcons[name] {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+	http.ServeFileFS(w, r, h.deps.AssetsFS, name)
+}
+
+// handleServiceWorker serves sw.js from the root so its scope covers the
+// whole app, prefixed with the offline page's strings in ?lang. A locale
+// change registers a new URL, which makes the browser update the worker.
 func (h *Handler) handleServiceWorker(w http.ResponseWriter, r *http.Request) {
 	if h.deps.AssetsFS == nil {
 		http.NotFound(w, r)
@@ -80,16 +98,12 @@ func (h *Handler) handleServiceWorker(w http.ResponseWriter, r *http.Request) {
 	if !models.Locale(lang).Valid() {
 		lang = string(models.LocaleEn)
 	}
-	strs, err := json.Marshal(map[string]string{
+	strs, _ := json.Marshal(map[string]string{
 		"lang":  lang,
 		"title": i18n.T("offline.title", lang),
 		"body":  i18n.T("offline.body", lang),
 		"retry": i18n.T("offline.retry", lang),
 	})
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
 	w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
 	_, _ = fmt.Fprintf(w, "self.DODO_OFFLINE = %s;\n", strs)
