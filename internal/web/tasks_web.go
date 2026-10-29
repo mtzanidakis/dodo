@@ -17,6 +17,18 @@ import (
 // pageSize is the number of timeline rows fetched per home-list page.
 const pageSize = 25
 
+// maxListRows caps ?rows=, which the browser sends when it refreshes the list
+// so rows added with "load more" survive. It matches Store.Timeline's limit.
+const maxListRows = 200
+
+func listLimit(raw string) int {
+	n, err := strconv.Atoi(raw)
+	if err != nil || n <= pageSize {
+		return pageSize
+	}
+	return min(n, maxListRows)
+}
+
 type taskView struct {
 	ID              string
 	Title           string
@@ -133,9 +145,9 @@ func dayLabel(local, now time.Time, lang, df string) string {
 // timelinePage fetches one page of the unified task timeline for the given
 // filter/period and turns it into day-groups plus the next-page cursor ("" when
 // there are no more rows).
-func (h *Handler) timelinePage(r *http.Request, u *models.User, loc *time.Location, now time.Time, filter, period, cursor string) ([]dayGroup, string) {
+func (h *Handler) timelinePage(r *http.Request, u *models.User, loc *time.Location, now time.Time, filter, period, cursor string, limit int) ([]dayGroup, string) {
 	from, to := models.PeriodBounds(period, now)
-	items, next, _ := h.deps.Store.Timeline(r.Context(), u.ID, filter, from, to, pageSize, cursor)
+	items, next, _ := h.deps.Store.Timeline(r.Context(), u.ID, filter, from, to, limit, cursor)
 	return h.buildTimelineGroups(items, filter, loc, string(u.Locale), u.DateFormat, now), next
 }
 
@@ -224,7 +236,7 @@ func (h *Handler) handleHome(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pd.Groups, pd.NextCursor = h.timelinePage(r, u, loc, now, filter, period, "")
+	pd.Groups, pd.NextCursor = h.timelinePage(r, u, loc, now, filter, period, "", listLimit(r.URL.Query().Get("rows")))
 	h.render(w, "tasks/index.html", pd)
 }
 
@@ -246,7 +258,7 @@ func (h *Handler) handleTasksPage(w http.ResponseWriter, r *http.Request) {
 	pd := h.base(w, r, u, "", "tasks")
 	pd.Filter = filter
 	pd.Period = period
-	pd.Groups, pd.NextCursor = h.timelinePage(r, u, loc, now, filter, period, r.URL.Query().Get("cursor"))
+	pd.Groups, pd.NextCursor = h.timelinePage(r, u, loc, now, filter, period, r.URL.Query().Get("cursor"), pageSize)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	tmpl := taskListTemplate()
 	_ = tmpl.ExecuteTemplate(w, "tasklist", pd)

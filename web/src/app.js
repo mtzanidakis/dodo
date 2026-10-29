@@ -375,18 +375,43 @@
   window.addEventListener("scroll", dpPosition, true);
 
   // ---- live list refresh (debounced) ----------------------------------
+  //
+  // The refresh asks for as many rows as are on screen (?rows=) so pages
+  // added with "load more" survive it. A refresh requested while one is in
+  // flight runs again afterwards: htmx would queue it against the element
+  // the first one replaces, and the second swap would be lost.
   var refreshTimer = null;
+  var refreshing = false;
+  var refreshAgain = false;
+
   function refreshList() {
-    var sel = document.getElementById("task-list") ? "#task-list" : document.getElementById("calendar") ? "#calendar" : null;
-    if (!sel || !window.htmx) return;
     if (refreshTimer) clearTimeout(refreshTimer);
-    refreshTimer = setTimeout(function () {
-      window.htmx.ajax("GET", window.location.pathname + window.location.search, {
-        target: sel,
-        select: sel,
-        swap: "outerHTML",
-      });
-    }, 250);
+    refreshTimer = setTimeout(runRefresh, 250);
+  }
+
+  function runRefresh() {
+    refreshTimer = null;
+    var el = document.getElementById("task-list") || document.getElementById("calendar");
+    if (!el || !window.htmx) return;
+    if (refreshing) {
+      refreshAgain = true;
+      return;
+    }
+    refreshing = true;
+    var sel = "#" + el.id;
+    var url = new URL(window.location.href);
+    var rows = el.querySelectorAll(".task-row").length;
+    if (rows) url.searchParams.set("rows", String(rows));
+    var done = function () {
+      refreshing = false;
+      if (refreshAgain) {
+        refreshAgain = false;
+        runRefresh();
+      }
+    };
+    Promise.resolve(
+      window.htmx.ajax("GET", url.pathname + url.search, { target: sel, select: sel, swap: "outerHTML" }),
+    ).then(done, done);
   }
 
   // An expired session redirects htmx requests to the login page; follow it
@@ -401,6 +426,13 @@
   });
 
   // ---- websocket ------------------------------------------------------
+  //
+  // The server sends a "ping" message every 30s. A socket that has heard
+  // nothing for WS_STALE_MS is treated as dead even if it still reports
+  // OPEN, which is what a half-open connection looks like after sleep or a
+  // network change.
+  var WS_STALE_MS = 75000;
+
   function wsDot(state) {
     var d = document.getElementById("ws-dot");
     if (!d) return;
@@ -411,6 +443,9 @@
   var backoff = 1000;
   var sock = null;
   var reconnectTimer = null;
+  var lastSeen = 0;
+  var wsOpenedBefore = false;
+
   function connectWS() {
     reconnectTimer = null;
     var proto = location.protocol === "https:" ? "wss:" : "ws:";
@@ -424,9 +459,14 @@
     sock = ws;
     ws.onopen = function () {
       backoff = 1000;
+      lastSeen = Date.now();
       wsDot("on");
+      // Events published while we were disconnected are gone; catch up.
+      if (wsOpenedBefore) refreshList();
+      wsOpenedBefore = true;
     };
     ws.onmessage = function (ev) {
+      lastSeen = Date.now();
       var evt;
       try {
         evt = JSON.parse(ev.data);
@@ -471,8 +511,19 @@
     backoff = Math.min(backoff * 2, 30000);
   }
 
+  function wsHealthy() {
+    if (!sock) return false;
+    if (sock.readyState === WebSocket.CONNECTING) return true;
+    return sock.readyState === WebSocket.OPEN && Date.now() - lastSeen <= WS_STALE_MS;
+  }
+
   function reconnectNow() {
-    if (sock && (sock.readyState === WebSocket.OPEN || sock.readyState === WebSocket.CONNECTING)) return;
+    if (wsHealthy()) return;
+    if (sock && sock.readyState === WebSocket.OPEN) {
+      try {
+        sock.close();
+      } catch (e) {}
+    }
     clearTimeout(reconnectTimer);
     backoff = 1000;
     connectWS();
@@ -483,20 +534,33 @@
   var live = !!document.querySelector(".usermenu");
   if (live) {
     connectWS();
+    setInterval(function () {
+      if (sock && sock.readyState === WebSocket.OPEN && !wsHealthy()) reconnectNow();
+    }, 15000);
   }
 
   // ---- refresh on resume ----------------------------------------------
-  // A background tab or a suspended installed app misses websocket events
-  // (the socket usually dies too), so catch up as soon as it is visible.
-  function onResume() {
-    refreshList();
-    if (live) reconnectNow();
+  //
+  // While the socket stays healthy the list is already current, so a quick
+  // tab switch must not reload it (and lose scroll position). Refresh when
+  // events may have been missed (the socket died) or after a long absence,
+  // when relative labels and overdue states may have moved on.
+  var RESUME_REFRESH_MS = 60000;
+  var hiddenAt = document.visibilityState === "hidden" ? Date.now() : null;
+
+  function onResume(force) {
+    var away = hiddenAt === null ? 0 : Date.now() - hiddenAt;
+    hiddenAt = null;
+    var missed = live && !wsHealthy();
+    if (force || missed || away >= RESUME_REFRESH_MS) refreshList();
+    if (missed) reconnectNow();
   }
 
   document.addEventListener("visibilitychange", function () {
-    if (document.visibilityState === "visible") onResume();
+    if (document.visibilityState === "hidden") hiddenAt = Date.now();
+    else onResume(false);
   });
   window.addEventListener("pageshow", function (e) {
-    if (e.persisted) onResume();
+    if (e.persisted) onResume(true);
   });
 })();
