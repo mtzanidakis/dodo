@@ -60,7 +60,7 @@ fs.writeFileSync(path.join(out, "app.js"), appJS);
 const swJS = fs.readFileSync(path.join(srcDir, "sw.js"), "utf8");
 fs.writeFileSync(path.join(out, "sw.js"), swJS);
 
-const images = ["logo.png", "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png"];
+const images = ["logo.png", "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png", "badge.png"];
 const hasher = crypto.createHash("sha256").update(vendorJS).update(appCSS).update(dateFormatJS).update(appJS).update(swJS);
 for (const name of images) {
   const b = fs.readFileSync(path.join(srcDir, name));

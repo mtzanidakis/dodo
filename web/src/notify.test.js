@@ -66,6 +66,7 @@ describe("due-task notifications", () => {
       tag: "task-t1",
       renotify: true,
       icon: "/icons/icon-192.png",
+      badge: "/icons/badge.png",
       data: { at: "2026-10-29T17:00:00Z" },
     });
     expect(NotificationMock).not.toHaveBeenCalled();

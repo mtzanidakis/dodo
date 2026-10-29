@@ -59,6 +59,7 @@ func TestIconsServedAtStablePaths(t *testing.T) {
 	t.Parallel()
 	h := NewHandler(Deps{Version: "test", AssetsFS: fstest.MapFS{
 		"icon-192.png": {Data: []byte("png")},
+		"badge.png":    {Data: []byte("png")},
 		"app.js":       {Data: []byte("js")},
 	}})
 	mux := http.NewServeMux()
@@ -70,6 +71,7 @@ func TestIconsServedAtStablePaths(t *testing.T) {
 		{"/icons/icon-192.png", http.StatusOK},
 		{"/icons/app.js", http.StatusNotFound},
 		{"/icons/icon-512.png", http.StatusNotFound},
+		{"/icons/badge.png", http.StatusOK},
 	}
 	for _, tc := range cases {
 		rec := httptest.NewRecorder()

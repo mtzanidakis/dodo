@@ -38,6 +38,7 @@ var appIcons = map[string]bool{
 	"icon-512.png":          true,
 	"icon-maskable-512.png": true,
 	"apple-touch-icon.png":  true,
+	"badge.png":             true,
 }
 
 // handleManifest is public because browsers fetch the manifest without

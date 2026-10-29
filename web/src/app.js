@@ -138,6 +138,8 @@
       tag: "task-" + (task.id || ""),
       renotify: true,
       icon: "/icons/icon-192.png",
+      // Android draws this in the status bar from its alpha channel only.
+      badge: "/icons/badge.png",
       data: { at: at },
     };
     var direct = function () {
