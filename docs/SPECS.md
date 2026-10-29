@@ -32,7 +32,7 @@ The project will be MIT-licensed.
 ## Stack
 
 - Mise setup for all dev tooling installation and tasks.
-- Go 1.27.2 for both the api and the cli commands. Three binaries: `dodo` (server + admin subcommand, ships in the container), `dodo-cli` (agent CLI), `dodo-tui` (terminal UI).
+- Go 1.27.3 for both the api and the cli commands. Three binaries: `dodo` (server + admin subcommand, ships in the container), `dodo-cli` (agent CLI), `dodo-tui` (terminal UI).
 - Use go stdlib as much as possible, reducing external dependencies. Telegram Bot API via a small hand-rolled client (no external telegram library).
 - Unit tests with extended coverage.
 - golangci-lint v2.14.0 for all go files.
