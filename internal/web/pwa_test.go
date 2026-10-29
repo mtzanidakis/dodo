@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
+
+	"github.com/mtzanidakis/dodo/internal/i18n"
 )
 
 func TestManifestIsPublicAndInstallable(t *testing.T) {
@@ -46,19 +48,41 @@ func TestServiceWorkerServedFromRoot(t *testing.T) {
 	h := NewHandler(Deps{Version: "test", AssetsFS: fstest.MapFS{"sw.js": {Data: []byte("self.x=1;")}}})
 	mux := http.NewServeMux()
 	h.Mount(mux)
-	rec := httptest.NewRecorder()
-	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/sw.js", nil))
-	if rec.Code != http.StatusOK {
-		t.Fatalf("sw.js: %d", rec.Code)
+	cases := []struct {
+		url, lang, title string
+	}{
+		{"/sw.js?lang=el", "el", i18n.T("offline.title", "el")},
+		{"/sw.js?lang=en", "en", i18n.T("offline.title", "en")},
+		{"/sw.js?lang=xx", "en", i18n.T("offline.title", "en")},
+		{"/sw.js", "en", i18n.T("offline.title", "en")},
 	}
-	if ct := rec.Header().Get("Content-Type"); !strings.Contains(ct, "javascript") {
-		t.Fatalf("content-type: %q", ct)
+	for _, tc := range cases {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, tc.url, nil))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s: %d", tc.url, rec.Code)
+		}
+		if ct := rec.Header().Get("Content-Type"); !strings.Contains(ct, "javascript") {
+			t.Fatalf("%s content-type: %q", tc.url, ct)
+		}
+		if cc := rec.Header().Get("Cache-Control"); cc != "no-cache" {
+			t.Fatalf("%s cache-control: %q", tc.url, cc)
+		}
+		body := rec.Body.String()
+		prefix, src, ok := strings.Cut(body, "\n")
+		if !ok || src != "self.x=1;" {
+			t.Fatalf("%s body: %q", tc.url, body)
+		}
+		var strs map[string]string
+		if err := json.Unmarshal([]byte(strings.TrimSuffix(strings.TrimPrefix(prefix, "self.DODO_OFFLINE = "), ";")), &strs); err != nil {
+			t.Fatalf("%s prefix %q: %v", tc.url, prefix, err)
+		}
+		if strs["lang"] != tc.lang || strs["title"] != tc.title || strs["body"] == "" || strs["retry"] == "" {
+			t.Fatalf("%s strings: %v", tc.url, strs)
+		}
 	}
-	if cc := rec.Header().Get("Cache-Control"); cc != "no-cache" {
-		t.Fatalf("cache-control: %q", cc)
-	}
-	if rec.Body.String() != "self.x=1;" {
-		t.Fatalf("body: %q", rec.Body.String())
+	if i18n.T("offline.title", "el") == i18n.T("offline.title", "en") {
+		t.Fatalf("offline.title not translated to el")
 	}
 }
 

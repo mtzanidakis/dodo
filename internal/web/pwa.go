@@ -2,7 +2,12 @@ package web
 
 import (
 	"encoding/json"
+	"fmt"
+	"io/fs"
 	"net/http"
+
+	"github.com/mtzanidakis/dodo/internal/i18n"
+	"github.com/mtzanidakis/dodo/internal/models"
 )
 
 type webManifest struct {
@@ -57,11 +62,36 @@ func (h *Handler) handleManifest(w http.ResponseWriter, _ *http.Request) {
 // handleServiceWorker serves sw.js from the site root, since a worker's
 // scope is limited to the path it is served from. It is revalidated on every
 // load so a new deploy replaces the old worker.
+//
+// The worker runs when the server is unreachable, so the offline page's
+// strings are prepended here in the ?lang the page registered it with. A
+// locale change registers a new URL, which makes the browser update it.
 func (h *Handler) handleServiceWorker(w http.ResponseWriter, r *http.Request) {
 	if h.deps.AssetsFS == nil {
 		http.NotFound(w, r)
 		return
 	}
+	src, err := fs.ReadFile(h.deps.AssetsFS, "sw.js")
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	lang := r.URL.Query().Get("lang")
+	if !models.Locale(lang).Valid() {
+		lang = string(models.LocaleEn)
+	}
+	strs, err := json.Marshal(map[string]string{
+		"lang":  lang,
+		"title": i18n.T("offline.title", lang),
+		"body":  i18n.T("offline.body", lang),
+		"retry": i18n.T("offline.retry", lang),
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
-	http.ServeFileFS(w, r, h.deps.AssetsFS, "sw.js")
+	_, _ = fmt.Fprintf(w, "self.DODO_OFFLINE = %s;\n", strs)
+	_, _ = w.Write(src)
 }

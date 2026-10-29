@@ -73,7 +73,7 @@
 
   // ---- service worker -------------------------------------------------
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("/sw.js").catch(function () {});
+    navigator.serviceWorker.register("/sw.js?lang=" + encodeURIComponent(root.lang || "en")).catch(function () {});
   }
 
   document.addEventListener("click", function (e) {
