@@ -97,10 +97,10 @@ func decodeEncryptionKey(raw string) ([]byte, error) {
 
 func validateLocale(l string) error {
 	switch l {
-	case "en", "el":
+	case "en", "el", "it":
 		return nil
 	default:
-		return fmt.Errorf("invalid locale %q (want en|el)", l)
+		return fmt.Errorf("invalid locale %q (want en|el|it)", l)
 	}
 }
 

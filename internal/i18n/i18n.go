@@ -8,7 +8,7 @@ import (
 	"sync"
 )
 
-//go:embed locales/en.json locales/el.json
+//go:embed locales/en.json locales/el.json locales/it.json
 var localeFS embed.FS
 
 type Bundle struct {
@@ -24,7 +24,7 @@ var (
 
 func loadAll() {
 	loadOnce.Do(func() {
-		for _, name := range []string{"en", "el"} {
+		for _, name := range []string{"en", "el", "it"} {
 			b, err := localeFS.ReadFile("locales/" + name + ".json")
 			if err != nil {
 				continue

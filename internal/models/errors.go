@@ -84,10 +84,11 @@ type Locale string
 const (
 	LocaleEn Locale = "en"
 	LocaleEl Locale = "el"
+	LocaleIt Locale = "it"
 )
 
 func (l Locale) Valid() bool {
-	return l == LocaleEn || l == LocaleEl
+	return l == LocaleEn || l == LocaleEl || l == LocaleIt
 }
 
 func ParsePriority(s string) (Priority, error) {
