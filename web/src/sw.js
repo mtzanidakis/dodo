@@ -1,5 +1,6 @@
-// dodo service worker. It caches nothing; it makes the app installable and
-// shows a retry page when a page load cannot reach the server.
+// dodo service worker. It caches nothing; it makes the app installable,
+// shows due-task notifications (the only way on Android), and shows a retry
+// page when a page load cannot reach the server.
 (function () {
   "use strict";
 
@@ -39,6 +40,18 @@
         self.clients.claim(),
         self.registration.navigationPreload ? self.registration.navigationPreload.enable() : null,
       ]),
+    );
+  });
+
+  self.addEventListener("notificationclick", function (event) {
+    event.notification.close();
+    event.waitUntil(
+      self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(function (wins) {
+        for (var i = 0; i < wins.length; i++) {
+          if ("focus" in wins[i]) return wins[i].focus();
+        }
+        return self.clients.openWindow("/");
+      }),
     );
   });
 

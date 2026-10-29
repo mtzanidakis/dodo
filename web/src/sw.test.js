@@ -78,3 +78,30 @@ describe("service worker fetch", () => {
     }
   });
 });
+
+describe("notification click", () => {
+  function click() {
+    const close = vi.fn();
+    let done;
+    handlers.notificationclick({ notification: { close }, waitUntil: (p) => (done = p) });
+    return { close, done };
+  }
+
+  it("focuses an open dodo window", async () => {
+    const focus = vi.fn();
+    const openWindow = vi.fn();
+    vi.stubGlobal("clients", { matchAll: () => Promise.resolve([{ focus }]), openWindow });
+    const { close, done } = click();
+    await done;
+    expect(close).toHaveBeenCalled();
+    expect(focus).toHaveBeenCalled();
+    expect(openWindow).not.toHaveBeenCalled();
+  });
+
+  it("opens the app when no window is open", async () => {
+    const openWindow = vi.fn();
+    vi.stubGlobal("clients", { matchAll: () => Promise.resolve([]), openWindow });
+    await click().done;
+    expect(openWindow).toHaveBeenCalledWith("/");
+  });
+});

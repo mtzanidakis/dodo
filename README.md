@@ -207,9 +207,12 @@ Bot tokens are encrypted at rest with AES-256-GCM
 ## Browser notifications
 
 On the web Account page, click **Enable notifications** to also get a
-desktop notification when a task is due. This uses the Web Notifications
-API, so it fires while a dodo tab is open and requires a secure context
-(`localhost` or https — not plain http to a LAN/tailnet IP).
+notification when a task is due. It is shown through dodo's service worker,
+so it also works in Chrome on Android, including the installed app. It
+fires while dodo is open (a tab, or the installed app while the OS keeps
+it running; there is no push service), so use Telegram for reminders you
+must not miss. It requires a secure context (`localhost` or https — not
+plain http to a LAN/tailnet IP).
 
 ## Install as an app
 

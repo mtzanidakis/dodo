@@ -122,15 +122,29 @@
     return "Notification" in window;
   }
 
+  // Shown through the service worker when there is one: Android Chrome only
+  // allows that (new Notification throws there), and sw.js focuses the app
+  // on click. The constructor stays as the fallback for desktop browsers.
   function notify(title, body, tag) {
     if (!notifySupported() || Notification.permission !== "granted") return;
-    try {
-      var n = new Notification(title, { body: body, tag: tag });
-      n.onclick = function () {
-        window.focus();
-        n.close();
-      };
-    } catch (e) {}
+    var opts = { body: body, tag: tag, icon: "/icons/icon-192.png" };
+    var direct = function () {
+      try {
+        var n = new Notification(title, opts);
+        n.onclick = function () {
+          window.focus();
+          n.close();
+        };
+      } catch (e) {}
+    };
+    if (!("serviceWorker" in navigator)) return direct();
+    navigator.serviceWorker
+      .getRegistration()
+      .then(function (reg) {
+        if (!reg || !reg.active) return direct();
+        return reg.showNotification(title, opts);
+      })
+      .catch(direct);
   }
 
   function updateNotifyUI() {
