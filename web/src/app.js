@@ -377,17 +377,28 @@
   // ---- live list refresh (debounced) ----------------------------------
   var refreshTimer = null;
   function refreshList() {
-    var list = document.getElementById("task-list");
-    if (!list || !window.htmx) return;
+    var sel = document.getElementById("task-list") ? "#task-list" : document.getElementById("calendar") ? "#calendar" : null;
+    if (!sel || !window.htmx) return;
     if (refreshTimer) clearTimeout(refreshTimer);
     refreshTimer = setTimeout(function () {
       window.htmx.ajax("GET", window.location.pathname + window.location.search, {
-        target: "#task-list",
-        select: "#task-list",
+        target: sel,
+        select: sel,
         swap: "outerHTML",
       });
     }, 250);
   }
+
+  // An expired session redirects htmx requests to the login page; follow it
+  // instead of swapping the login form's missing fragment into the page.
+  document.addEventListener("htmx:beforeSwap", function (e) {
+    var xhr = e.detail && e.detail.xhr;
+    if (!xhr || !xhr.responseURL) return;
+    if (new URL(xhr.responseURL).pathname === "/login") {
+      e.detail.shouldSwap = false;
+      window.location.assign("/login");
+    }
+  });
 
   // ---- websocket ------------------------------------------------------
   function wsDot(state) {
@@ -398,7 +409,10 @@
   }
 
   var backoff = 1000;
+  var sock = null;
+  var reconnectTimer = null;
   function connectWS() {
+    reconnectTimer = null;
     var proto = location.protocol === "https:" ? "wss:" : "ws:";
     var ws;
     try {
@@ -407,6 +421,7 @@
       scheduleReconnect();
       return;
     }
+    sock = ws;
     ws.onopen = function () {
       backoff = 1000;
       wsDot("on");
@@ -438,6 +453,8 @@
       }
     };
     ws.onclose = function () {
+      // A socket replaced by reconnectNow must not schedule a second one.
+      if (sock !== ws) return;
       wsDot("off");
       scheduleReconnect();
     };
@@ -449,13 +466,37 @@
   }
 
   function scheduleReconnect() {
-    setTimeout(connectWS, backoff);
+    if (reconnectTimer) return;
+    reconnectTimer = setTimeout(connectWS, backoff);
     backoff = Math.min(backoff * 2, 30000);
+  }
+
+  function reconnectNow() {
+    if (sock && (sock.readyState === WebSocket.OPEN || sock.readyState === WebSocket.CONNECTING)) return;
+    clearTimeout(reconnectTimer);
+    backoff = 1000;
+    connectWS();
   }
 
   // Connect the live-updates websocket on authenticated pages (the user menu
   // only renders when logged in).
-  if (document.querySelector(".usermenu")) {
+  var live = !!document.querySelector(".usermenu");
+  if (live) {
     connectWS();
   }
+
+  // ---- refresh on resume ----------------------------------------------
+  // A background tab or a suspended installed app misses websocket events
+  // (the socket usually dies too), so catch up as soon as it is visible.
+  function onResume() {
+    refreshList();
+    if (live) reconnectNow();
+  }
+
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "visible") onResume();
+  });
+  window.addEventListener("pageshow", function (e) {
+    if (e.persisted) onResume();
+  });
 })();

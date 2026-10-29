@@ -189,6 +189,10 @@ func TestCalendarRenders(t *testing.T) {
 	if !strings.Contains(rec.Body.String(), "cal-grid") {
 		t.Fatalf("calendar grid missing")
 	}
+	// app.js refreshes the calendar by this id.
+	if !strings.Contains(rec.Body.String(), `id="calendar"`) {
+		t.Fatalf("calendar container id missing")
+	}
 }
 
 func TestCalendarShowsCompletedOccurrenceOnDueMonth(t *testing.T) {
