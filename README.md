@@ -61,7 +61,7 @@ Open `http://localhost:8080/login` in a browser and sign in with those
 credentials to use the web UI: a list view (with today/this-week/
 this-month and pending/completed/all filters), a month calendar,
 per-user profile, API token management, Telegram setup, dark/light/
-system theme, and English/Greek locales.
+system theme, and English/Greek/Italian locales.
 
 ## Deploy with Docker Compose
 

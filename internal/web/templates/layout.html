@@ -42,9 +42,10 @@
       <div class="menu card">
         <form method="POST" action="/ui/locale" style="display:contents">
           <input type="hidden" name="_csrf" value="{{.CSRF}}">
-          <button type="submit" name="locale" value="en">English</button>
-          <button type="submit" name="locale" value="el">Ελληνικά</button>
-          <button type="submit" name="locale" value="it">Italiano</button>
+          {{$cur := printf "%s" .User.Locale}}
+          <button type="submit" name="locale" value="en"{{if eq $cur "en"}} class="active" aria-current="true"{{end}}>English</button>
+          <button type="submit" name="locale" value="el"{{if eq $cur "el"}} class="active" aria-current="true"{{end}}>Ελληνικά</button>
+          <button type="submit" name="locale" value="it"{{if eq $cur "it"}} class="active" aria-current="true"{{end}}>Italiano</button>
         </form>
       </div>
     </details>
