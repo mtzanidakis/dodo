@@ -8,6 +8,11 @@ import (
 
 type userDTO struct {
 	ID                  string  `json:"id"`
+	Role string `json:"role"`
+	DefaultDue string `json:"default_due"`
+	DefaultPriority string `json:"default_priority"`
+	DefaultRecurrence string `json:"default_recurrence"`
+	DefaultRecurrenceInterval int `json:"default_recurrence_interval"`
 	Email               string  `json:"email"`
 	DisplayName         string  `json:"display_name"`
 	Timezone            string  `json:"timezone"`
@@ -24,6 +29,11 @@ type userDTO struct {
 func toUserDTO(u *models.User) userDTO {
 	return userDTO{
 		ID:                 u.ID,
+		Role: u.Role,
+		DefaultDue: u.DefaultDue,
+		DefaultPriority: string(u.DefaultPriority),
+		DefaultRecurrence: u.DefaultRecurrence,
+		DefaultRecurrenceInterval: u.DefaultRecurrenceInterval,
 		Email:              u.Email,
 		DisplayName:        u.DisplayName,
 		Timezone:           u.Timezone,

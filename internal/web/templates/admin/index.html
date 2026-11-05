@@ -1,0 +1,45 @@
+{{define "content"}}
+<div class="narrow" style="margin:0 auto">
+<h1>{{t .Lang "admin.title"}}</h1>
+{{if .Flash}}<div class="alert alert-ok">{{.Flash}}</div>{{end}}
+{{if .Error}}<div class="alert alert-error">{{.Error}}</div>{{end}}
+<div class="card panel">
+ <h2>{{t .Lang "admin.create"}}</h2>
+ <form method="POST" action="/admin/users">
+ <input type="hidden" name="_csrf" value="{{.CSRF}}">
+ <label class="field"><span>{{t .Lang "field.email"}}</span><input name="email" type="email" required></label>
+ <label class="field"><span>{{t .Lang "field.display_name"}}</span><input name="display_name"></label>
+ <label class="field"><span>{{t .Lang "field.password"}}</span><input name="password" type="password" minlength="8" required autocomplete="new-password"></label>
+ <button class="btn btn-primary">{{t .Lang "admin.create"}}</button>
+ </form>
+</div>
+<div class="card panel">
+<h2>{{t .Lang "admin.users"}}</h2>
+{{range .Users}}
+ <div class="card panel" style="margin-bottom:0.75rem">
+  <strong>{{.Email}}</strong> {{.DisplayName}}
+  <p class="hint">{{if .DisabledAt}}{{t $.Lang "admin.disabled"}}{{else if not .EmailVerifiedAt}}{{t $.Lang "admin.unverified"}}{{else}}{{t $.Lang "admin.active"}}{{end}}</p>
+  <div class="form-row">
+   <form method="POST" action="/admin/users/{{.ID}}/role">
+    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+    <select name="role">
+     <option value="user" {{if eq .Role "user"}}selected{{end}}>{{t $.Lang "admin.user"}}</option>
+     <option value="admin" {{if eq .Role "admin"}}selected{{end}}>{{t $.Lang "admin.administrator"}}</option>
+    </select>
+    <button class="btn">{{t $.Lang "action.save"}}</button>
+   </form>
+   <form method="POST" action="/admin/users/{{.ID}}/status">
+    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+    {{if .DisabledAt}}<input type="hidden" name="disabled" value="false"><button class="btn">{{t $.Lang "admin.enable"}}</button>
+    {{else}}<input type="hidden" name="disabled" value="true"><button class="btn">{{t $.Lang "admin.disable"}}</button>{{end}}
+   </form>
+   <form method="POST" action="/admin/users/{{.ID}}/delete" onsubmit="return confirm({{printf "%q" (t $.Lang "admin.confirm_delete")}})">
+    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+    <button class="btn btn-danger">{{t $.Lang "admin.delete_permanently"}}</button>
+   </form>
+  </div>
+ </div>
+{{end}}
+</div>
+</div>
+{{end}}

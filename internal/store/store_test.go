@@ -63,9 +63,12 @@ func TestUserUniqueEmailConflict(t *testing.T) {
 func TestUserSoftDelete(t *testing.T) {
 	s, u := newTestStore(t)
 	ctx := context.Background()
-	if err := s.Users.SoftDelete(ctx, u.ID); err != nil {
-		t.Fatalf("soft delete: %v", err)
-	}
+	second := &models.User{Email:"another-admin@example.com",PasswordHash:"x"}
+    if err := s.Users.Create(ctx,second); err!=nil { t.Fatal(err) }
+    if err := s.Users.SetRole(ctx,second.ID,"admin"); err!=nil { t.Fatal(err) }
+    if err := s.Users.SoftDelete(ctx, u.ID); err != nil {
+        t.Fatalf("soft delete: %v", err)
+    }
 	if _, err := s.Users.GetByEmail(ctx, "user@example.com"); !errors.Is(err, models.ErrNotFound) {
 		t.Fatalf("expected ErrNotFound after soft delete, got %v", err)
 	}

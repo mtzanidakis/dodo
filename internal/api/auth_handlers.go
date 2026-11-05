@@ -38,7 +38,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user, err := s.store.Users.GetByEmail(r.Context(), req.Email)
-	if err != nil || !auth.VerifyPassword(req.Password, safeHash(user)) {
+	if err != nil || !user.Active() || !auth.VerifyPassword(req.Password, safeHash(user)) {
 		s.loginRL.RecordFailure(r, req.Email)
 		s.audit(r, "login.failed", "user", "", map[string]any{"email": req.Email})
 		writeJSON(w, http.StatusUnauthorized, errorEnvelope{Error: apiError{Code: "unauthorized", Message: "invalid email or password"}})

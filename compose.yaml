@@ -1,7 +1,8 @@
 services:
   dodo:
     container_name: dodo
-    image: ghcr.io/mtzanidakis/dodo:latest
+    image: dodo-custom:latest
+    build: .
     ports:
       - "8080:8080"
     volumes:
@@ -14,6 +15,13 @@ services:
       - DODO_DEFAULT_LOCALE=${DODO_DEFAULT_LOCALE:-en}
       - DODO_LOG_LEVEL=${DODO_LOG_LEVEL:-info}
       - TZ=${TZ:-UTC}
+      - DODO_PUBLIC_URL=${DODO_PUBLIC_URL:-}
+      - DODO_SMTP_HOST=${DODO_SMTP_HOST:-}
+      - DODO_SMTP_PORT=${DODO_SMTP_PORT:-587}
+      - DODO_SMTP_USER=${DODO_SMTP_USER:-}
+      - DODO_SMTP_PASSWORD=${DODO_SMTP_PASSWORD:-}
+      - DODO_SMTP_FROM=${DODO_SMTP_FROM:-}
+      - DODO_SMTP_MODE=${DODO_SMTP_MODE:-starttls}
     networks:
       - dodo-net
     restart: unless-stopped

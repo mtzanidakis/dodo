@@ -4,6 +4,16 @@ import "time"
 
 type User struct {
 	ID                   string
+	Role                 string
+	DisabledAt           *time.Time
+	EmailVerifiedAt      *time.Time
+	DefaultDue           string
+	DefaultPriority      Priority
+	DefaultRecurrence    string
+	DefaultRecurrenceInterval int
+	DailyDigestEnabled bool
+	DailyDigestTime string
+	DailyDigestLastSentDate string
 	Email                string
 	PasswordHash         string
 	DisplayName          string
@@ -20,6 +30,9 @@ type User struct {
 	UpdatedAt            time.Time
 	DeletedAt            *time.Time
 }
+
+func (u *User) IsAdmin() bool { return u.Active() && u.Role == "admin" }
+func (u *User) Active() bool { return u != nil && u.DisabledAt == nil && u.EmailVerifiedAt != nil && !u.Deleted() }
 
 func (u *User) TelegramEnabled() bool {
 	if u == nil {

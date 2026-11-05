@@ -153,6 +153,17 @@ func (c *client) write(data []byte) error {
 	return err
 }
 
+func (h *Hub) DisconnectUser(userID string) {
+    h.mu.Lock()
+    set := h.clients[userID]
+    delete(h.clients,userID)
+    for c := range set {
+        select { case <-c.done: default: close(c.done) }
+    }
+    h.mu.Unlock()
+    for c := range set { _ = c.conn.CloseNow() }
+}
+
 func (h *Hub) Close() {
 	h.mu.Lock()
 	defer h.mu.Unlock()

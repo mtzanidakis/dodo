@@ -18,7 +18,9 @@ type Users struct {
 func userColumns() string {
 	return `id, email, password_hash, display_name, timezone, locale, theme, date_format,
         telegram_bot_token, telegram_allowed_user_ids, telegram_chat_id, telegram_chat_user_id,
-        telegram_configured_at, created_at, updated_at, deleted_at`
+        telegram_configured_at, created_at, updated_at, deleted_at,
+        role, disabled_at, email_verified_at, default_due, default_priority, default_recurrence, default_recurrence_interval,
+        daily_digest_enabled, daily_digest_time, daily_digest_last_sent_date`
 }
 
 func scanUser(row interface {
@@ -33,11 +35,17 @@ func scanUser(row interface {
 		configuredAt sql.NullString
 		createdAt    sql.NullString
 		updatedAt    sql.NullString
+		disabledAt sql.NullString
+		verifiedAt sql.NullString
+		digestEnabled int
+		digestLast sql.NullString
 	)
 	err := row.Scan(
 		&u.ID, &u.Email, &u.PasswordHash, &u.DisplayName, &u.Timezone, &u.Locale, &u.Theme, &u.DateFormat,
 		&botToken, &allowed, &chatID, &chatUserID, &configuredAt,
 		&createdAt, &updatedAt, &deletedAt,
+		&u.Role, &disabledAt, &verifiedAt, &u.DefaultDue, &u.DefaultPriority, &u.DefaultRecurrence, &u.DefaultRecurrenceInterval,
+		&digestEnabled, &u.DailyDigestTime, &digestLast,
 	)
 	if err != nil {
 		return err
@@ -50,42 +58,43 @@ func scanUser(row interface {
 	u.TelegramChatUserID = chatUserID.String
 	u.TelegramConfiguredAt = parseNullableTime(configuredAt)
 	u.DeletedAt = parseNullableTime(deletedAt)
+	u.DisabledAt = parseNullableTime(disabledAt)
+	u.EmailVerifiedAt = parseNullableTime(verifiedAt)
+	u.DailyDigestEnabled = digestEnabled == 1
+	u.DailyDigestLastSentDate = digestLast.String
 	u.CreatedAt = parseTime(createdAt)
 	u.UpdatedAt = parseTime(updatedAt)
 	return nil
 }
 
 func (s *Users) Create(ctx context.Context, u *models.User) error {
-	u.ID = newUUID()
-	now := time.Now().UTC()
-	u.CreatedAt = now
-	u.UpdatedAt = now
-	if u.Timezone == "" {
-		u.Timezone = "Europe/Athens"
-	}
-	if u.Locale == "" {
-		u.Locale = models.LocaleEn
-	}
-	if u.Theme == "" {
-		u.Theme = models.ThemeSystem
-	}
-	u.DateFormat = dateformat.Normalize(u.DateFormat)
-
-	var botToken, allowed, chatID, chatUserID, configuredAt, deletedAt any
-	_, err := s.db.ExecContext(ctx, `INSERT INTO users
-(id, email, password_hash, display_name, timezone, locale, theme, date_format,
- telegram_bot_token, telegram_allowed_user_ids, telegram_chat_id, telegram_chat_user_id,
- telegram_configured_at, created_at, updated_at, deleted_at)
-VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-		u.ID, u.Email, u.PasswordHash, u.DisplayName, u.Timezone, u.Locale, u.Theme, u.DateFormat,
-		botToken, allowed, chatID, chatUserID, configuredAt, formatTime(u.CreatedAt), formatTime(u.UpdatedAt), deletedAt)
-	if err != nil {
-		if isUniqueViolation(err) {
-			return fmt.Errorf("%w: email %s already exists", models.ErrConflict, u.Email)
-		}
-		return err
-	}
-	return nil
+    u.ID = newUUID()
+    now := time.Now().UTC()
+    u.CreatedAt, u.UpdatedAt = now, now
+    if u.Timezone == "" { u.Timezone = "Europe/Athens" }
+    if u.Locale == "" { u.Locale = models.LocaleEn }
+    if u.Theme == "" { u.Theme = models.ThemeSystem }
+    u.DateFormat = dateformat.Normalize(u.DateFormat)
+    tx,err := s.db.BeginTx(ctx,nil)
+    if err != nil { return err }
+    defer func(){ _ = tx.Rollback() }()
+    _,err = tx.ExecContext(ctx,`INSERT INTO users
+        (id,email,password_hash,display_name,timezone,locale,theme,date_format,
+         created_at,updated_at,email_verified_at)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+         u.ID,u.Email,u.PasswordHash,u.DisplayName,u.Timezone,u.Locale,u.Theme,
+         u.DateFormat,formatTime(now),formatTime(now),formatTime(now))
+    if err != nil {
+        if isUniqueViolation(err) { return fmt.Errorf("%w: email already exists",models.ErrConflict) }
+        return err
+    }
+    promoted,err:=tx.ExecContext(ctx,`UPDATE users SET role='admin' WHERE id=?
+        AND NOT EXISTS (SELECT 1 FROM users WHERE role='admin' AND deleted_at IS NULL
+          AND disabled_at IS NULL AND email_verified_at IS NOT NULL)`,u.ID)
+    if err != nil { return err }
+    if n,_:=promoted.RowsAffected();n>0 { u.Role="admin" } else { u.Role="user" }
+    u.EmailVerifiedAt = &now
+    return tx.Commit()
 }
 
 func (s *Users) GetByID(ctx context.Context, id string) (*models.User, error) {
@@ -113,7 +122,7 @@ func (s *Users) GetByTelegramWebhookSecret(_ context.Context, _ string) (*models
 }
 
 func (s *Users) List(ctx context.Context) ([]*models.User, error) {
-	rows, err := s.db.QueryContext(ctx, "SELECT "+userColumns()+" FROM users WHERE deleted_at IS NULL ORDER BY created_at")
+	rows, err := s.db.QueryContext(ctx, "SELECT "+userColumns()+" FROM users WHERE deleted_at IS NULL ORDER BY created_at, id")
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +140,7 @@ func (s *Users) List(ctx context.Context) ([]*models.User, error) {
 
 func (s *Users) ListTelegramEnabled(ctx context.Context) ([]*models.User, error) {
 	rows, err := s.db.QueryContext(ctx,
-		"SELECT "+userColumns()+" FROM users WHERE deleted_at IS NULL AND telegram_bot_token IS NOT NULL AND telegram_bot_token != ''")
+		"SELECT "+userColumns()+" FROM users WHERE deleted_at IS NULL AND disabled_at IS NULL AND email_verified_at IS NOT NULL AND telegram_bot_token IS NOT NULL AND telegram_bot_token != ''")
 	if err != nil {
 		return nil, err
 	}

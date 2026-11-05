@@ -32,6 +32,7 @@ type Deps struct {
 	Telegram TelegramConfigurator
 	AssetsFS fs.FS
 	Version  string
+	Mail MailSettings
 }
 
 var funcMap = template.FuncMap{
@@ -126,6 +127,8 @@ type pageData struct {
 	DateFormats      []dateFormatOption
 	DateFormatCustom string
 	DateFormatSelect string
+	Users []*models.User
+	RegistrationEnabled bool
 }
 
 func colorScheme(theme models.Theme) string {
@@ -212,6 +215,9 @@ func (h *Handler) Mount(mux *http.ServeMux) {
 
 	mux.HandleFunc("GET /login", h.handleLoginPage)
 	mux.HandleFunc("POST /login", h.handleLoginPost)
+	mux.HandleFunc("GET /register",h.handleRegisterPage)
+	mux.Handle("POST /register",deps.AuthMW.CSRF(http.HandlerFunc(h.handleRegisterPost)))
+	mux.HandleFunc("GET /verify",h.handleVerifyEmail)
 
 	sess := func(fn http.HandlerFunc) http.Handler {
 		return deps.AuthMW.AuthSession(deps.AuthMW.RequireUser(http.HandlerFunc(fn)))
@@ -225,6 +231,13 @@ func (h *Handler) Mount(mux *http.ServeMux) {
 
 	mux.Handle("GET /{$}", sess(h.handleHome))
 	mux.Handle("GET /account", sess(h.handleAccount))
+	mux.Handle("POST /account/defaults", post(h.handleDefaults))
+	mux.Handle("POST /account/daily-digest", post(h.handleDailyDigestSettings))
+	mux.Handle("GET /admin", sess(h.handleAdmin))
+	mux.Handle("POST /admin/users", post(h.handleAdminCreate))
+	mux.Handle("POST /admin/users/{id}/role", post(h.handleAdminRole))
+	mux.Handle("POST /admin/users/{id}/status", post(h.handleAdminStatus))
+	mux.Handle("POST /admin/users/{id}/delete", post(h.handleAdminDelete))
 	mux.Handle("POST /account", post(h.handleAccountPost))
 	mux.Handle("POST /account/password", post(h.handleAccountPassword))
 	mux.Handle("POST /account/telegram", post(h.handleAccountTelegram))
@@ -238,6 +251,7 @@ func (h *Handler) Mount(mux *http.ServeMux) {
 	mux.Handle("POST /ui/tokens/{id}/delete", post(h.handleRevokeToken))
 
 	mux.Handle("POST /ui/tasks", post(h.handleCreateTask))
+	mux.Handle("GET /ui/tasks/defaults", sess(h.handleTaskDefaults))
 	mux.Handle("GET /ui/tasks/page", sess(h.handleTasksPage))
 	mux.Handle("GET /ui/tasks/{id}/edit", sess(h.handleEditTaskPage))
 	mux.Handle("POST /ui/tasks/{id}", post(h.handleUpdateTask))
@@ -280,7 +294,7 @@ func (n noDirFS) Open(name string) (http.File, error) {
 
 func (h *Handler) handleLoginPage(w http.ResponseWriter, r *http.Request) {
 	csrf := auth.IssueCSRF(w)
-	h.render(w, "auth/login.html", pageData{Title: "Sign in", Lang: "en", CSRF: csrf, ColorScheme: "light dark"})
+	h.render(w, "auth/login.html", pageData{Title: "Sign in", Lang: publicLanguage(r), CSRF: csrf, ColorScheme: "light dark", RegistrationEnabled: h.deps.Mail.Ready(), Flash: registrationFlash(r)})
 }
 
 func (h *Handler) handleLoginPost(w http.ResponseWriter, r *http.Request) {
@@ -288,14 +302,14 @@ func (h *Handler) handleLoginPost(w http.ResponseWriter, r *http.Request) {
 	password := r.FormValue("password")
 	loginFailed := func() {
 		csrf := auth.IssueCSRF(w)
-		h.render(w, "auth/login.html", pageData{Title: "Sign in", Lang: "en", CSRF: csrf, ColorScheme: "light dark", Error: i18n.T("login.failed", "en")})
+		h.render(w, "auth/login.html", pageData{Title: "Sign in", Lang: publicLanguage(r), CSRF: csrf, ColorScheme: "light dark", RegistrationEnabled: h.deps.Mail.Ready(), Error: i18n.T("login.failed", publicLanguage(r))})
 	}
 	if h.deps.LoginRL != nil && !h.deps.LoginRL.Allow(r, email) {
 		loginFailed()
 		return
 	}
 	user, err := h.deps.Store.Users.GetByEmail(r.Context(), email)
-	if err != nil || !auth.VerifyPassword(password, safeHash(user)) {
+	if err != nil || !user.Active() || !auth.VerifyPassword(password, safeHash(user)) {
 		if h.deps.LoginRL != nil {
 			h.deps.LoginRL.RecordFailure(r, email)
 		}

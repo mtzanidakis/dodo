@@ -19,6 +19,13 @@ type Config struct {
 	DefaultTimezone   string
 	SchedulerInterval time.Duration
 	LogLevel          string
+	SMTPHost string
+	SMTPPort string
+	SMTPUser string
+	SMTPPassword string
+	SMTPFrom string
+	SMTPMode string
+	PublicURL string
 }
 
 func Load() (Config, error) {
@@ -29,6 +36,13 @@ func Load() (Config, error) {
 		DefaultTimezone:   env("DODO_DEFAULT_TIMEZONE", "Europe/Athens"),
 		SchedulerInterval: envDuration("DODO_SCHEDULER_INTERVAL", time.Minute),
 		LogLevel:          env("DODO_LOG_LEVEL", "info"),
+		SMTPHost: os.Getenv("DODO_SMTP_HOST"),
+		SMTPPort: env("DODO_SMTP_PORT","587"),
+		SMTPUser: os.Getenv("DODO_SMTP_USER"),
+		SMTPPassword: os.Getenv("DODO_SMTP_PASSWORD"),
+		SMTPFrom: os.Getenv("DODO_SMTP_FROM"),
+		SMTPMode: env("DODO_SMTP_MODE","starttls"),
+		PublicURL: os.Getenv("DODO_PUBLIC_URL"),
 	}
 
 	if c.DatabasePath == "" {

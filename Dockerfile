@@ -6,7 +6,7 @@ COPY web/package.json web/package-lock.json* ./web/
 RUN cd web && npm install --no-audit --no-fund
 COPY web ./web
 WORKDIR /src/web
-RUN npm run build
+RUN npm test && npm run build
 
 FROM golang:1.27.3-alpine AS go
 WORKDIR /src
@@ -15,6 +15,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 COPY --from=web /src/internal/web/dist ./internal/web/dist
+RUN gofmt -w ./internal ./cmd && go vet ./... && go test ./...
 ARG VERSION=dev
 ARG COMMIT=none
 RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" -o /out/dodo ./cmd/dodo

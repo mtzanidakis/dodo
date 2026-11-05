@@ -19,6 +19,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 		Telegram: s,
 		AssetsFS: assetsFS,
 		Version:  assetVersion,
+		Mail: web.MailSettings{Host:s.cfg.SMTPHost,Port:s.cfg.SMTPPort,User:s.cfg.SMTPUser,Password:s.cfg.SMTPPassword,From:s.cfg.SMTPFrom,Mode:s.cfg.SMTPMode,PublicURL:s.cfg.PublicURL}, 
 	})
 	webHandler.Mount(mux)
 	apiChain := func(h http.HandlerFunc) http.Handler {

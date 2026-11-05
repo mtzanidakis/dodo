@@ -26,6 +26,8 @@ func NewRegistry(st *store.Store, c *crypto.Crypto) *Registry {
 func (r *Registry) WithAPIBase(base string) *Registry { r.apiBase = base; return r }
 
 func (r *Registry) GetOrCreate(ctx context.Context, userID string) (*Client, error) {
+    user,err := r.store.Users.GetByID(ctx,userID)
+    if err!=nil || !user.Active() { return nil,errors.New("account inactive") }
 	r.mu.RLock()
 	if c, ok := r.clients[userID]; ok {
 		r.mu.RUnlock()

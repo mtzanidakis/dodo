@@ -599,6 +599,32 @@
     }, 15000);
   }
 
+  // Apply personal defaults at the instant the new-task editor is opened.
+  document.addEventListener("click", function (event) {
+    var trigger = event.target.closest("[data-new-task]");
+    if (!trigger) return;
+    var form = document.querySelector('form[action="/ui/tasks"]');
+    if (!form) return;
+    // The click toggles the form; do not overwrite an already-open editor.
+    if (form.dataset.defaultsLoading === "true") return;
+    form.dataset.defaultsLoading = "true";
+    Promise.resolve().then(function () {
+      return fetch("/ui/tasks/defaults", { credentials: "same-origin", cache: "no-store" });
+    }).then(function (response) {
+        if (!response.ok) throw new Error("defaults unavailable");
+        return response.json();
+      })
+      .then(function (data) {
+        var fields = form.elements;
+        if (fields.namedItem("due_at")) fields.namedItem("due_at").value = data.due;
+        if (fields.namedItem("priority")) fields.namedItem("priority").value = data.priority;
+        if (fields.namedItem("recurrence_freq")) fields.namedItem("recurrence_freq").value = data.recurrence;
+        if (fields.namedItem("recurrence_interval")) fields.namedItem("recurrence_interval").value = data.interval;
+      })
+      .catch(function () {})
+      .finally(function () { delete form.dataset.defaultsLoading; });
+  });
+
   // ---- refresh on resume ----------------------------------------------
   //
   // While the socket stays healthy the list is already current, so a quick
