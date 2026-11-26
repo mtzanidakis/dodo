@@ -309,3 +309,14 @@ func (h *Handler) handleRevokeToken(w http.ResponseWriter, r *http.Request) {
 	h.deps.Hub.Publish(u.ID, "tokens.updated", nil)
 	http.Redirect(w, r, "/tokens", http.StatusSeeOther)
 }
+
+func (h *Handler) handleDailyDigestSettings(w http.ResponseWriter, r *http.Request) {
+    u := auth.UserFromContext(r.Context())
+    enabled := r.FormValue("daily_digest_enabled") == "1"
+    clock := strings.TrimSpace(r.FormValue("daily_digest_time"))
+    if err := h.deps.Store.Users.SetDailyDigest(r.Context(),u.ID,enabled,clock);err!=nil {
+        http.Redirect(w,r,"/account?err="+url.QueryEscape(i18n.T("digest.invalid",string(u.Locale))),http.StatusSeeOther)
+        return
+    }
+    http.Redirect(w,r,"/account?ok="+url.QueryEscape(i18n.T("digest.saved",string(u.Locale))),http.StatusSeeOther)
+}

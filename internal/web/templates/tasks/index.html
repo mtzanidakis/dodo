@@ -17,7 +17,7 @@
       {{end}}
     </div>
     <div class="spacer"></div>
-    <button class="btn btn-primary" @click="showForm = !showForm">+ {{t .Lang "action.new_task"}}</button>
+    <button class="btn btn-primary" data-new-task @click="showForm = !showForm">+ {{t .Lang "action.new_task"}}</button>
   </div>
   {{if ne .View "calendar"}}
   <div class="toolbar subfilter">
@@ -53,7 +53,7 @@
             {{range .Freqs}}<option value="{{.Value}}">{{.Label}}</option>{{end}}
           </select></label>
         <label class="field"><span>{{t .Lang "field.interval"}}</span>
-          <input type="number" name="recurrence_interval" min="1" value="1"></label>
+          <input type="number" name="recurrence_interval" min="1" max="365" value="1"></label>
       </div>
       <label class="field"><span>{{t .Lang "field.description"}}</span>
         <textarea name="description" rows="2"></textarea></label>

@@ -2,12 +2,20 @@
 <section class="card panel" style="max-width:22rem;margin:8vh auto">
   <img class="brand-logo" src="/static/{{.AssetVersion}}/logo.png" alt="dodo" style="height:104px;display:block;margin:0 auto 1.25rem">
   {{if .Error}}<div class="alert alert-error">{{.Error}}</div>{{end}}
+  <nav style="display:flex;gap:1rem;margin-bottom:1rem">
+    <a href="/login?lang=en">English</a>
+    <a href="/login?lang=it">Italiano</a>
+    <a href="/login?lang=el">Ελληνικά</a>
+  </nav>
   <form method="POST" action="/login">
+    <input type="hidden" name="lang" value="{{.Lang}}">
     <label class="field"><span>{{t .Lang "field.email"}}</span>
       <input name="email" type="email" required autofocus autocomplete="username"></label>
     <label class="field"><span>{{t .Lang "field.password"}}</span>
       <input name="password" type="password" required autocomplete="current-password"></label>
     <div class="form-actions"><button class="btn btn-primary" type="submit" style="width:100%">{{t .Lang "login.submit"}}</button></div>
   </form>
+  {{if .RegistrationEnabled}}<p><a href="/register?lang={{.Lang}}">{{t .Lang "register.link"}}</a></p>{{end}}
+  {{if .Flash}}<p>{{.Flash}}</p>{{end}}
 </section>
 {{end}}

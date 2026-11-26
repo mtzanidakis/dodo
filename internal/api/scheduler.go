@@ -62,6 +62,7 @@ func (sc *Scheduler) tick(ctx context.Context) {
 	tasks, err := sc.store.Tasks.ListDue(ctx, now, 500)
 	if err != nil {
 		sc.logger.Warn("scheduler list-due error", "error", err)
+		sc.tickDailyDigest(ctx, now)
 		return
 	}
 	for _, t := range tasks {
@@ -70,6 +71,7 @@ func (sc *Scheduler) tick(ctx context.Context) {
 		}
 		sc.dispatch(ctx, t, now)
 	}
+	sc.tickDailyDigest(ctx, now)
 	_ = sc.store.Sessions.DeleteExpired(ctx, now)
 	sc.logger.Debug("scheduler tick", "duration_ms", time.Since(start).Milliseconds(), "due", len(tasks))
 }
@@ -84,7 +86,7 @@ func shouldNotify(t *models.Task, now time.Time) bool {
 
 func (sc *Scheduler) dispatch(ctx context.Context, t *models.Task, now time.Time) {
 	u, err := sc.store.Users.GetByID(ctx, t.UserID)
-	if err != nil || u == nil {
+	if err != nil || !u.Active() {
 		return
 	}
 	sc.hub.Publish(t.UserID, "task.due", map[string]any{"id": t.ID, "title": t.Title, "notified_at": now.UTC().Format(time.RFC3339)})

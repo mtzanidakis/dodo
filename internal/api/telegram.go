@@ -10,6 +10,8 @@ import (
 	"github.com/mtzanidakis/dodo/internal/models"
 )
 
+func (s *Server) StopTelegramForUser(userID string) { _ = s.telegram.StopForUser(userID) }
+
 type setTelegramRequest struct {
 	BotToken       string `json:"bot_token"`
 	AllowedUserIDs string `json:"allowed_user_ids"`

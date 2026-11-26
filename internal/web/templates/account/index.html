@@ -34,6 +34,43 @@
   </div>
 
   <div class="card panel">
+    <h2>{{t .Lang "defaults.title"}}</h2>
+    <form method="POST" action="/account/defaults">
+      <input type="hidden" name="_csrf" value="{{.CSRF}}">
+      <label class="field"><span>{{t .Lang "defaults.due"}}</span>
+        <select name="due">
+          <option value="now" {{if eq .User.DefaultDue "now"}}selected{{end}}>{{t .Lang "defaults.now"}}</option>
+          <option value="24h" {{if eq .User.DefaultDue "24h"}}selected{{end}}>{{t .Lang "defaults.24h"}}</option>
+          <option value="week" {{if eq .User.DefaultDue "week"}}selected{{end}}>{{t .Lang "defaults.week"}}</option>
+          <option value="month" {{if eq .User.DefaultDue "month"}}selected{{end}}>{{t .Lang "defaults.month"}}</option>
+        </select>
+      </label>
+      <label class="field"><span>{{t .Lang "field.priority"}}</span>
+        <select name="priority">
+          <option value="low" {{if eq (printf "%s" .User.DefaultPriority) "low"}}selected{{end}}>{{t .Lang "priority.low"}}</option>
+          <option value="normal" {{if eq (printf "%s" .User.DefaultPriority) "normal"}}selected{{end}}>{{t .Lang "priority.normal"}}</option>
+          <option value="high" {{if eq (printf "%s" .User.DefaultPriority) "high"}}selected{{end}}>{{t .Lang "priority.high"}}</option>
+        </select>
+      </label>
+      <div class="form-row">
+        <label class="field"><span>{{t .Lang "field.repeat"}}</span>
+          <select name="recurrence">
+            <option value="once" {{if eq .User.DefaultRecurrence "once"}}selected{{end}}>{{t .Lang "recurrence.none"}}</option>
+            <option value="daily" {{if eq .User.DefaultRecurrence "daily"}}selected{{end}}>{{t .Lang "recurrence.daily"}}</option>
+            <option value="weekly" {{if eq .User.DefaultRecurrence "weekly"}}selected{{end}}>{{t .Lang "recurrence.weekly"}}</option>
+            <option value="monthly" {{if eq .User.DefaultRecurrence "monthly"}}selected{{end}}>{{t .Lang "recurrence.monthly"}}</option>
+            <option value="yearly" {{if eq .User.DefaultRecurrence "yearly"}}selected{{end}}>{{t .Lang "recurrence.yearly"}}</option>
+          </select>
+        </label>
+        <label class="field"><span>{{t .Lang "field.interval"}}</span>
+          <input type="number" name="recurrence_interval" min="1" max="365" required value="{{.User.DefaultRecurrenceInterval}}">
+        </label>
+      </div>
+      <div class="form-actions"><button class="btn btn-primary">{{t .Lang "action.save"}}</button></div>
+    </form>
+  </div>
+
+  <div class="card panel">
     <h2>{{t .Lang "account.password"}}</h2>
     <form method="POST" action="/account/password">
       <input type="hidden" name="_csrf" value="{{.CSRF}}">
@@ -59,6 +96,24 @@
     <div class="form-actions">
       <button type="button" class="btn btn-primary" data-notify-enable hidden>{{t .Lang "notify.enable"}}</button>
     </div>
+  </div>
+
+  <div class="card panel">
+    <h2>{{t .Lang "digest.title"}}</h2>
+    <p class="hint">{{t .Lang "digest.help"}}</p>
+    <form method="POST" action="/account/daily-digest">
+      <input type="hidden" name="_csrf" value="{{.CSRF}}">
+      <label class="field">
+        <span>{{t .Lang "digest.enabled"}}</span>
+        <input type="checkbox" name="daily_digest_enabled" value="1" {{if .User.DailyDigestEnabled}}checked{{end}}>
+      </label>
+      <label class="field"><span>{{t .Lang "digest.time"}}</span>
+        <input type="time" name="daily_digest_time" value="{{.User.DailyDigestTime}}" required>
+      </label>
+      <p class="hint">{{t .Lang "digest.timezone"}}: {{.User.Timezone}}</p>
+      <div class="form-actions"><button class="btn btn-primary">{{t .Lang "action.save"}}</button></div>
+    </form>
+    {{if not .Telegram.Linked}}<p class="hint">{{t .Lang "digest.telegram_required"}}</p>{{end}}
   </div>
 
   <div class="card panel">
